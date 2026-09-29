@@ -1,0 +1,863 @@
+/**
+ * ZoBlocks Switch — the stylesheet.
+ *
+ * Every colour resolves through a `--zb-switch-*` component token, so a brand
+ * restyles the control by overriding tokens rather than editing this file.
+ * Deliberately no Tailwind utilities: keyframes cannot be expressed as tokens,
+ * and a component whose motion depends on the host's Tailwind config renders
+ * unstyled in a Vue app.
+ *
+ * Logical properties throughout. `left`/`right` do not flip in RTL and the bug
+ * is invisible until somebody opens the interface in Arabic.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Root                                                                */
+/* ------------------------------------------------------------------ */
+
+.zb-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zb-switch-gap);
+  color: var(--zb-text);
+  font-size: var(--zb-density-font);
+  vertical-align: middle;
+}
+
+/* Tone selects the on-state fill. Never the only signal — see the state word. */
+.zb-switch[data-zb-tone="caution"] {
+  --zb-switch-track-on-bg: var(--zb-switch-track-caution-bg);
+  --zb-switch-track-on-border: var(--zb-switch-track-caution-bg);
+  --zb-switch-state-on-fg: var(--zb-switch-track-caution-bg);
+}
+.zb-switch[data-zb-tone="critical"] {
+  --zb-switch-track-on-bg: var(--zb-switch-track-critical-bg);
+  --zb-switch-track-on-border: var(--zb-switch-track-critical-bg);
+  --zb-switch-state-on-fg: var(--zb-switch-track-critical-bg);
+}
+.zb-switch[data-zb-tone="neutral"] {
+  --zb-switch-track-on-bg: var(--zb-switch-track-neutral-bg);
+  --zb-switch-track-on-border: var(--zb-switch-track-neutral-bg);
+  --zb-switch-state-on-fg: var(--zb-switch-track-neutral-bg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Control and hit area                                                */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__control {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  flex: none;
+  touch-action: manipulation;
+}
+
+/**
+ * The hit area, decoupled from the visual size.
+ *
+ * This is what lets a 26x14px switch sit in a dense flowsheet row and still
+ * clear SC 2.5.8. Shrinking the pill does not shrink the target.
+ */
+.zb-switch__control::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  inline-size: max(var(--zb-switch-track-w), var(--zb-switch-target-min));
+  block-size: max(var(--zb-switch-track-h), var(--zb-switch-target-min));
+}
+
+/* A press-and-hold on a phone would otherwise select text and raise the iOS
+   callout partway through the hold. */
+@media (pointer: coarse) {
+  .zb-switch__control,
+  .zb-switch__chip {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.zb-switch__control:focus-visible {
+  outline: none;
+}
+.zb-switch__control:focus-visible .zb-switch__track {
+  outline: var(--zb-switch-focus-width) solid var(--zb-switch-focus-ring);
+  outline-offset: var(--zb-switch-focus-offset);
+}
+
+/* ------------------------------------------------------------------ */
+/* Track                                                               */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__track {
+  position: relative;
+  display: grid;
+  align-items: center;
+  inline-size: var(--zb-switch-track-w);
+  block-size: var(--zb-switch-track-h);
+  border-radius: var(--zb-switch-radius);
+  background: var(--zb-switch-track-off-bg);
+  border: 1px solid var(--zb-switch-track-off-border);
+  transition:
+    background var(--zb-switch-duration) var(--zb-switch-ease),
+    border-color var(--zb-switch-duration) var(--zb-switch-ease);
+}
+
+.zb-switch[data-zb-state="on"] .zb-switch__track {
+  background: var(--zb-switch-track-on-bg);
+  border-color: var(--zb-switch-track-on-border);
+}
+
+.zb-switch[data-zb-state="unknown"] .zb-switch__track {
+  background: var(--zb-switch-track-unknown-bg);
+  border-color: var(--zb-switch-track-unknown-border);
+  border-style: dashed;
+}
+
+/* ------------------------------------------------------------------ */
+/* Thumb                                                               */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__thumb {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--zb-switch-pad);
+  translate: 0 -50%;
+  inline-size: var(--zb-switch-thumb-size);
+  block-size: var(--zb-switch-thumb-size);
+  border-radius: var(--zb-switch-radius);
+  background: var(--zb-switch-thumb-bg);
+  color: var(--zb-switch-thumb-fg);
+  box-shadow: 0 1px 2px rgb(2 6 23 / 0.28);
+  display: grid;
+  place-items: center;
+  transition:
+    inset-inline-start var(--zb-switch-duration) var(--zb-switch-ease),
+    translate var(--zb-switch-duration) var(--zb-switch-ease);
+}
+
+.zb-switch[data-zb-state="on"] .zb-switch__thumb {
+  inset-inline-start: calc(100% - var(--zb-switch-thumb-size) - var(--zb-switch-pad));
+}
+
+.zb-switch[data-zb-state="unknown"] .zb-switch__thumb {
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  background: var(--zb-switch-thumb-unknown-bg);
+  color: var(--zb-switch-thumb-unknown-fg);
+}
+
+.zb-switch__glyph {
+  inline-size: 62%;
+  block-size: 62%;
+  display: block;
+}
+.zb-switch[data-zb-size="micro"] .zb-switch__glyph,
+.zb-switch[data-zb-size="small"] .zb-switch__glyph {
+  inline-size: 78%;
+  block-size: 78%;
+}
+
+/* ------------------------------------------------------------------ */
+/* appearance="labeled" — the word inside the track                    */
+/* ------------------------------------------------------------------ */
+
+.zb-switch[data-zb-appearance="labeled"] .zb-switch__track {
+  inline-size: auto;
+  min-inline-size: var(--zb-switch-track-w);
+  padding-inline: calc(var(--zb-switch-thumb-size) + var(--zb-switch-pad) * 2) 0;
+}
+.zb-switch[data-zb-appearance="labeled"][data-zb-state="on"] .zb-switch__track {
+  padding-inline: 0 calc(var(--zb-switch-thumb-size) + var(--zb-switch-pad) * 2);
+}
+
+/**
+ * Both words occupy one grid cell, so the track is sized by the longer of the
+ * two and the thumb travel is constant.
+ *
+ * A switch that resizes as it toggles reflows everything after it — in a table
+ * row, the whole row jumps.
+ */
+.zb-switch__words {
+  display: grid;
+  padding-inline: 0.45em;
+}
+.zb-switch__words > * {
+  grid-area: 1 / 1;
+}
+.zb-switch__word {
+  font-size: var(--zb-switch-label-font);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: center;
+  transition: opacity var(--zb-switch-duration) var(--zb-switch-ease);
+}
+.zb-switch__word--on {
+  color: var(--zb-switch-label-on-fg);
+  opacity: 0;
+}
+.zb-switch__word--off {
+  color: var(--zb-switch-label-off-fg);
+  opacity: 1;
+}
+.zb-switch[data-zb-state="on"] .zb-switch__word--on {
+  opacity: 1;
+}
+.zb-switch[data-zb-state="on"] .zb-switch__word--off {
+  opacity: 0;
+}
+.zb-switch[data-zb-state="unknown"] .zb-switch__word {
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* appearance="segmented" — the explicit binary                        */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__segments {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--zb-switch-segment-border);
+  border-radius: var(--zb-radius);
+  overflow: hidden;
+  background: var(--zb-switch-segment-bg);
+}
+
+.zb-switch__segment {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--zb-switch-state-font);
+  font-weight: 600;
+  color: var(--zb-switch-segment-fg);
+  padding-inline: 0.85rem;
+  padding-block: 0.35rem;
+  cursor: pointer;
+  min-block-size: max(1.75rem, var(--zb-switch-target-min));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-inline-end: 1px solid var(--zb-switch-segment-divider);
+  transition:
+    background var(--zb-switch-duration) var(--zb-switch-ease),
+    color var(--zb-switch-duration) var(--zb-switch-ease);
+}
+.zb-switch__segment:last-child {
+  border-inline-end: 0;
+}
+.zb-switch__segment:hover:not([aria-checked="true"]):not(:disabled) {
+  background: var(--zb-switch-segment-hover-bg);
+  color: var(--zb-text);
+}
+.zb-switch__segment[aria-checked="true"] {
+  background: var(--zb-switch-track-on-bg);
+  color: var(--zb-switch-label-on-fg);
+}
+.zb-switch__segment:focus-visible {
+  outline: var(--zb-switch-focus-width) solid var(--zb-switch-focus-ring);
+  outline-offset: calc(var(--zb-switch-focus-offset) * -1);
+}
+
+/**
+ * The unasked cell is a `<span>`, not a button, and it disappears once
+ * answered. A user may leave "unknown"; a user may never enter it.
+ */
+.zb-switch__segment--unasked {
+  background: var(--zb-switch-segment-unasked-bg);
+  color: var(--zb-switch-segment-unasked-fg);
+  cursor: default;
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ */
+/* appearance="chip" — a filter bar                                    */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__chip {
+  appearance: none;
+  font: inherit;
+  font-size: var(--zb-switch-state-font);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-inline: 0.55rem 0.7rem;
+  padding-block: 0.3rem;
+  border-radius: var(--zb-switch-radius);
+  cursor: pointer;
+  border: 1px solid var(--zb-switch-segment-border);
+  background: var(--zb-switch-segment-bg);
+  color: var(--zb-switch-segment-fg);
+  min-block-size: max(1.75rem, var(--zb-switch-target-min));
+  transition:
+    background var(--zb-switch-duration) var(--zb-switch-ease),
+    color var(--zb-switch-duration) var(--zb-switch-ease),
+    border-color var(--zb-switch-duration) var(--zb-switch-ease);
+}
+.zb-switch[data-zb-state="on"] .zb-switch__chip {
+  background: var(--zb-switch-track-on-bg);
+  border-color: var(--zb-switch-track-on-border);
+  color: var(--zb-switch-label-on-fg);
+}
+.zb-switch__chip .zb-switch__glyph {
+  inline-size: 0.85em;
+  block-size: 0.85em;
+  opacity: 0;
+  transition: opacity var(--zb-switch-duration) var(--zb-switch-ease);
+}
+.zb-switch[data-zb-state="on"] .zb-switch__chip .zb-switch__glyph,
+.zb-switch[data-zb-state="unknown"] .zb-switch__chip .zb-switch__glyph {
+  opacity: 1;
+}
+.zb-switch__chip:focus-visible {
+  outline: var(--zb-switch-focus-width) solid var(--zb-switch-focus-ring);
+  outline-offset: var(--zb-switch-focus-offset);
+}
+
+/* ------------------------------------------------------------------ */
+/* appearance="row" — the whole row is the target                      */
+/* ------------------------------------------------------------------ */
+
+.zb-switch[data-zb-appearance="row"] {
+  display: block;
+  inline-size: 100%;
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__control {
+  inline-size: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--zb-switch-gap);
+  padding-inline: var(--zb-density-pad-x);
+  padding-block: var(--zb-density-pad-y);
+  text-align: start;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius);
+  background: var(--zb-surface);
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__control::before {
+  content: none;
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__control:hover {
+  background: var(--zb-bg-subtle);
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__control:focus-visible {
+  outline: var(--zb-switch-focus-width) solid var(--zb-switch-focus-ring);
+  outline-offset: var(--zb-switch-focus-offset);
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__control:focus-visible .zb-switch__track {
+  outline: none;
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__rowtext {
+  flex: 1;
+  min-inline-size: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.zb-switch[data-zb-appearance="row"] .zb-switch__track {
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Commit phases                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pending keeps the control. No `disabled`, no `aria-disabled`, focus
+ * retained, name unchanged — a spinner that removes the control is a disabled
+ * state wearing a costume, and on a slow network it is a dead pixel for as
+ * long as the request takes.
+ */
+.zb-switch[data-zb-phase="pending"] .zb-switch__track {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--zb-switch-track-on-bg) 0 6px,
+    color-mix(in oklab, var(--zb-switch-track-on-bg) 62%, var(--zb-bg)) 6px 12px
+  );
+  animation: zb-switch-march 900ms linear infinite;
+}
+.zb-switch[data-zb-phase="pending"][data-zb-state="off"] .zb-switch__track {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--zb-switch-track-off-bg) 0 6px,
+    color-mix(in oklab, var(--zb-switch-track-off-bg) 62%, var(--zb-bg)) 6px 12px
+  );
+}
+
+@keyframes zb-switch-march {
+  to {
+    background-position: 34px 0;
+  }
+}
+
+.zb-switch[data-zb-phase="committed"] .zb-switch__thumb {
+  animation: zb-switch-confirm 600ms var(--zb-switch-ease);
+}
+
+@keyframes zb-switch-confirm {
+  from {
+    box-shadow:
+      0 1px 2px rgb(2 6 23 / 0.28),
+      0 0 0 0 color-mix(in oklab, var(--zb-switch-track-on-bg) 60%, transparent);
+  }
+  to {
+    box-shadow:
+      0 1px 2px rgb(2 6 23 / 0.28),
+      0 0 0 10px transparent;
+  }
+}
+
+.zb-switch[data-zb-phase="reverted"] .zb-switch__track,
+.zb-switch[data-zb-phase="blocked"] .zb-switch__track {
+  outline: 2px solid var(--zb-switch-error-fg);
+  outline-offset: 2px;
+}
+
+.zb-switch[data-zb-phase="queued"] .zb-switch__track {
+  background: var(--zb-bg-subtle);
+  border: 1px dashed var(--zb-switch-queued-fg);
+}
+.zb-switch[data-zb-phase="queued"] .zb-switch__thumb {
+  background: var(--zb-switch-queued-fg);
+  color: var(--zb-bg);
+  box-shadow: none;
+}
+
+.zb-switch[data-zb-phase="stale"] .zb-switch__track {
+  outline: 2px dashed var(--zb-switch-stale-fg);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Availability                                                        */
+/* ------------------------------------------------------------------ */
+
+.zb-switch[data-zb-disabled="true"] {
+  opacity: 0.45;
+}
+.zb-switch[data-zb-disabled="true"] .zb-switch__control,
+.zb-switch[data-zb-disabled="true"] .zb-switch__chip,
+.zb-switch[data-zb-disabled="true"] .zb-switch__segment {
+  cursor: not-allowed;
+}
+
+/**
+ * Read-only is a different object, not a weaker one.
+ *
+ * Dimming reads as "inactive", which is a value rather than an availability —
+ * and `disabled` would take the control out of the tab order, so a
+ * screen-reader user would never learn it exists or why it cannot be changed.
+ */
+.zb-switch[data-zb-readonly="true"] .zb-switch__control {
+  cursor: default;
+}
+.zb-switch[data-zb-readonly="true"] .zb-switch__track {
+  background: var(--zb-switch-locked-bg);
+  border: 1px dashed var(--zb-switch-track-off-border);
+}
+.zb-switch[data-zb-readonly="true"][data-zb-state="on"] .zb-switch__track {
+  background: var(--zb-accent-subtle);
+  border-color: var(--zb-switch-track-on-bg);
+}
+.zb-switch[data-zb-readonly="true"] .zb-switch__thumb {
+  background: var(--zb-switch-track-off-bg);
+  color: var(--zb-bg);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Text beside the control                                             */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__text {
+  display: grid;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+.zb-switch__label {
+  line-height: 1.35;
+}
+.zb-switch__state {
+  font-size: var(--zb-switch-state-font);
+  font-weight: 600;
+  color: var(--zb-switch-state-fg);
+}
+.zb-switch[data-zb-state="on"] .zb-switch__state {
+  color: var(--zb-switch-state-on-fg);
+}
+/*
+ * The state label is a word on the page's own ground, not a chip on a tint.
+ *
+ * It read `--zb-switch-segment-unasked-fg`, which is `--zb-status-unknown` — a
+ * token the build gates only against `status.unknown-bg`, where it measures
+ * 4.55:1 in light. Nothing had ever measured it as bare text, and as bare text
+ * it is thin: 4.76:1 on `--zb-bg`, and 4.24:1 on the slightly sunk ground the
+ * docs preview it against, which is where axe caught "Not assessed" failing AA.
+ *
+ * So the hue keeps the two surfaces it was measured on — the unasked segment
+ * cell and the lapsed `until` pill — and the label joins every other state
+ * label on `--zb-switch-state-fg` (`--zb-text-muted`, gated 7.24:1 at worst).
+ * Nothing is lost by it: the word says "Not assessed", and this system holds
+ * that status is never carried by colour alone.
+ */
+.zb-switch[data-zb-state="unknown"] .zb-switch__state {
+  color: var(--zb-switch-state-fg);
+}
+.zb-switch__desc {
+  font-size: var(--zb-switch-state-font);
+  color: var(--zb-switch-desc-fg);
+  line-height: 1.45;
+}
+
+.zb-switch__note {
+  font-size: var(--zb-switch-state-font);
+  line-height: 1.45;
+  margin-block-start: 0.3rem;
+}
+.zb-switch__note--error {
+  color: var(--zb-switch-error-fg);
+  font-weight: 600;
+}
+.zb-switch__note--locked {
+  color: var(--zb-switch-locked-fg);
+}
+.zb-switch__note--pending {
+  color: var(--zb-switch-pending-fg);
+}
+
+.zb-switch__provenance {
+  font-size: var(--zb-text-2xs);
+  color: var(--zb-switch-prov-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* until — the time-boxed on-state                                     */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__until {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--zb-text-2xs);
+  font-weight: 600;
+  padding-inline: 0.45rem;
+  padding-block: 0.1rem;
+  border-radius: var(--zb-switch-radius);
+  background: var(--zb-switch-until-bg);
+  color: var(--zb-switch-until-fg);
+  border: 1px solid var(--zb-switch-until-border);
+  font-variant-numeric: tabular-nums;
+}
+.zb-switch__until--lapsed {
+  background: var(--zb-switch-track-unknown-bg);
+  color: var(--zb-switch-segment-unasked-fg);
+  border-color: var(--zb-switch-track-unknown-border);
+}
+
+/* ------------------------------------------------------------------ */
+/* impact — the consequence, before the click                          */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__impact {
+  margin-block-start: 0.45rem;
+  padding-inline: 0.65rem;
+  padding-block: 0.5rem;
+  border-inline-start: 3px solid var(--zb-switch-impact-border);
+  background: var(--zb-switch-impact-bg);
+  color: var(--zb-switch-impact-fg);
+  font-size: var(--zb-switch-state-font);
+  border-start-end-radius: var(--zb-radius);
+  border-end-end-radius: var(--zb-radius);
+}
+.zb-switch__impact ul {
+  margin: 0.3rem 0 0;
+  padding-inline-start: 1.1rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* stale — the conflict panel                                          */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__conflict {
+  display: grid;
+  gap: 0.2rem;
+  margin-block-start: 0.4rem;
+  padding-inline: 0.65rem;
+  padding-block: 0.5rem;
+  border-radius: var(--zb-radius);
+  background: var(--zb-switch-stale-bg);
+  border: 1px solid var(--zb-switch-stale-fg);
+  font-size: var(--zb-switch-state-font);
+}
+.zb-switch__conflict-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-block-start: 0.4rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Confirmation                                                        */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: var(--zb-switch-radius);
+  pointer-events: none;
+}
+.zb-switch__ring circle {
+  fill: none;
+  stroke-width: 2.5;
+}
+.zb-switch__ring-track {
+  stroke: color-mix(in oklab, var(--zb-switch-hold-ring) 30%, transparent);
+}
+.zb-switch__ring-value {
+  stroke: var(--zb-switch-hold-ring);
+  stroke-linecap: round;
+  stroke-dasharray: var(--zb-switch-hold-progress, 0) 999;
+}
+
+.zb-switch__dialog {
+  margin-block-start: 0.5rem;
+  padding-inline: 0.8rem;
+  padding-block: 0.7rem;
+  border-radius: var(--zb-radius);
+  border: 1px solid var(--zb-switch-until-border);
+  background: var(--zb-switch-until-bg);
+  font-size: var(--zb-switch-state-font);
+  display: grid;
+  gap: 0.5rem;
+}
+.zb-switch__dialog-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.zb-switch__attest {
+  font: inherit;
+  font-size: var(--zb-switch-state-font);
+  inline-size: 100%;
+  padding-inline: 0.5rem;
+  padding-block: 0.35rem;
+  border-radius: var(--zb-radius-sm);
+  border: 1px solid var(--zb-switch-segment-border);
+  background: var(--zb-surface);
+  color: var(--zb-text);
+}
+
+/* iOS zooms the page into any focused field set below 16px. */
+@media (pointer: coarse) {
+  .zb-switch__attest {
+    font-size: max(16px, 1em);
+  }
+}
+
+.zb-switch__action {
+  font: inherit;
+  font-size: var(--zb-switch-state-font);
+  font-weight: 600;
+  padding-inline: 0.7rem;
+  padding-block: 0.25rem;
+  min-block-size: max(1.75rem, var(--zb-switch-target-min));
+  border-radius: var(--zb-switch-radius);
+  border: 1px solid var(--zb-switch-segment-border);
+  background: var(--zb-surface);
+  color: var(--zb-text);
+  cursor: pointer;
+}
+.zb-switch__action:hover {
+  background: var(--zb-bg-subtle);
+}
+.zb-switch__action:focus-visible {
+  outline: var(--zb-switch-focus-width) solid var(--zb-switch-focus-ring);
+  outline-offset: var(--zb-switch-focus-offset);
+}
+
+/* ------------------------------------------------------------------ */
+/* Countersign                                                         */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__countersign {
+  margin-block-start: 0.5rem;
+  border: 1px solid var(--zb-switch-until-border);
+  background: var(--zb-switch-until-bg);
+  border-radius: var(--zb-radius);
+  padding-inline: 0.8rem;
+  padding-block: 0.7rem;
+  font-size: var(--zb-switch-state-font);
+}
+.zb-switch__countersign-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: 0.45rem;
+}
+.zb-switch__countersign-slot {
+  flex: 1;
+  border: 1px dashed var(--zb-switch-until-fg);
+  border-radius: var(--zb-radius-sm);
+  padding-inline: 0.5rem;
+  padding-block: 0.35rem;
+  color: var(--zb-switch-until-fg);
+  font-style: italic;
+}
+.zb-switch__countersign-slot--done {
+  border-style: solid;
+  font-style: normal;
+  background: var(--zb-surface);
+  color: var(--zb-text);
+}
+
+/* ------------------------------------------------------------------ */
+/* SwitchList                                                          */
+/* ------------------------------------------------------------------ */
+
+.zb-switch-list {
+  display: grid;
+  border: 1px solid var(--zb-border);
+  border-radius: var(--zb-radius);
+  overflow: hidden;
+  background: var(--zb-surface);
+}
+.zb-switch-list__head {
+  padding-inline: var(--zb-density-pad-x);
+  padding-block: var(--zb-density-pad-y);
+  background: var(--zb-bg-subtle);
+  border-block-end: 1px solid var(--zb-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--zb-switch-gap);
+  flex-wrap: wrap;
+}
+.zb-switch-list__title {
+  font-weight: 600;
+}
+.zb-switch-list__summary {
+  font-size: var(--zb-switch-state-font);
+  color: var(--zb-switch-desc-fg);
+  font-variant-numeric: tabular-nums;
+}
+.zb-switch-list__items {
+  display: grid;
+}
+
+.zb-switch-field {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zb-switch-gap);
+  padding-inline: var(--zb-density-pad-x);
+  padding-block: var(--zb-density-pad-y);
+  border-block-end: 1px solid var(--zb-border);
+}
+.zb-switch-field:last-child {
+  border-block-end: 0;
+}
+.zb-switch-field__body {
+  flex: 1;
+  min-inline-size: 0;
+}
+.zb-switch-field__side {
+  display: grid;
+  justify-items: end;
+  gap: 0.3rem;
+}
+.zb-switch-field--standalone {
+  border-block-end: 0;
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Visually hidden — live regions and the "record no" affordance       */
+/* ------------------------------------------------------------------ */
+
+.zb-switch__sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion — a designed still state, not a frozen one           */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .zb-switch__track,
+  .zb-switch__thumb,
+  .zb-switch__word,
+  .zb-switch__segment,
+  .zb-switch__chip {
+    transition-duration: 1ms;
+  }
+  /* The stripe holds a static diagonal rather than freezing mid-march. */
+  .zb-switch[data-zb-phase="pending"] .zb-switch__track {
+    animation: none;
+  }
+  .zb-switch[data-zb-phase="committed"] .zb-switch__thumb {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Forced colours — our tokens are discarded entirely here             */
+/* ------------------------------------------------------------------ */
+
+@media (forced-colors: active) {
+  .zb-switch__track {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+    background: Canvas !important;
+  }
+  .zb-switch[data-zb-state="on"] .zb-switch__track {
+    background: Highlight !important;
+  }
+  .zb-switch__thumb {
+    background: CanvasText !important;
+    color: Canvas !important;
+    box-shadow: none;
+  }
+  .zb-switch[data-zb-state="on"] .zb-switch__thumb {
+    background: HighlightText !important;
+    color: Highlight !important;
+  }
+  .zb-switch__word,
+  .zb-switch__state,
+  .zb-switch__segment {
+    color: CanvasText !important;
+  }
+  .zb-switch__segment[aria-checked="true"] {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+  .zb-switch[data-zb-state="on"] .zb-switch__chip {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+  }
+}
