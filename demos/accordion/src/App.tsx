@@ -52,7 +52,7 @@ export default function App() {
             children: (
               <div>
                 {" "}
-                <p> Six steps complete. Means restriction reviewed on 11 August. </p>{" "}
+                <p> Six steps complete. Means restriction reviewed on 11 September. </p>{" "}
               </div>
             ),
           },
