@@ -1,0 +1,925 @@
+/**
+ * DataGrid — a worklist set as a ruled ledger.
+ *
+ * The form is the argument. A clinical worklist is printed, photographed,
+ * pasted into a handover and read at 3 a.m. on somebody else's filter, so it
+ * is set the way a lab report is set: a masthead with the claim in it, a
+ * heavy rule under the column names, hairlines between rows, tabular figures
+ * that stack into columns you can scan without reading, and numbered
+ * footnotes at the bottom for everything the header could not say in two
+ * words.
+ *
+ * Three rules hold the whole file together.
+ *
+ *   **Nothing is carried by colour.** One colour appears: critical, on a
+ *   value that has crossed a threshold, and it always has a word beside it
+ *   supplied by the host. Sort state is a glyph and a weight. The current row
+ *   is a marker in the margin. Absence is a word set in italic. All of it
+ *   survives a monochrome print, forced-colors mode, and a photograph of a
+ *   monitor.
+ *
+ *   **The rules are the layout.** Vertical hairlines between columns and a
+ *   double rule top and bottom are what make a dense table readable at 13px;
+ *   zebra striping is not, because it fights the row marker and disappears in
+ *   print.
+ *
+ *   **No Tailwind utilities.** A component whose layout depends on the host's
+ *   Tailwind config renders unstyled in somebody else's build, and every
+ *   colour here resolves through a semantic token so a brand override reaches
+ *   this file without editing it.
+ */
+
+.zb-grid {
+  --zb-grid-rule: var(--zb-border, #e2e8f0);
+  --zb-grid-rule-strong: var(--zb-border-strong, #94a3b8);
+  --zb-grid-ink: var(--zb-text, #0f172a);
+  --zb-grid-muted: var(--zb-text-muted, #64748b);
+  --zb-grid-subtle: var(--zb-text-subtle, #94a3b8);
+  --zb-grid-surface: var(--zb-surface, #ffffff);
+  --zb-grid-sunk: var(--zb-bg-muted, #f1f5f9);
+  --zb-grid-accent: var(--zb-accent, #0d9488);
+  /* The selection bar's ground. Declared here so a brand override reaches it
+     without editing this file, and so the two are guaranteed to agree. */
+  --zb-grid-accent-bg: var(--zb-accent-subtle, #f0fdfa);
+  --zb-grid-accent-line: var(--zb-accent-border, #99f6e4);
+  --zb-grid-pad-x: 0.75rem;
+  --zb-grid-pad-y: 0.4rem;
+  --zb-grid-font: var(--zb-text-sm, 0.875rem);
+
+  display: block;
+  border: 1px solid var(--zb-grid-rule-strong);
+  background: var(--zb-grid-surface);
+  color: var(--zb-grid-ink);
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-grid-font);
+  line-height: 1.5;
+}
+
+/*
+ * Three densities, and the control is the product rather than a preference.
+ *
+ * A supervisor scanning three hundred clients and a clinician working six want
+ * different row heights, and asking a customer to pick one at build time means
+ * one of those two people is always working in the wrong grid.
+ */
+.zb-grid[data-zb-density="compact"] {
+  --zb-grid-pad-y: 0.25rem;
+  --zb-grid-pad-x: 0.625rem;
+  --zb-grid-font: var(--zb-text-xs, 0.75rem);
+}
+
+.zb-grid[data-zb-density="comfortable"] {
+  --zb-grid-pad-y: 0.7rem;
+  --zb-grid-pad-x: 1rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* Masthead — the claim, above the data it is about                  */
+/* ---------------------------------------------------------------- */
+
+.zb-grid__masthead {
+  padding: 0.75rem var(--zb-grid-pad-x) 0.625rem;
+  /* The heavy rule. A lab report has one here and it is the single cue that
+     tells a reader the block above is about the block below. */
+  border-block-end: 2px solid var(--zb-grid-ink);
+}
+
+.zb-grid__mastline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.zb-grid__title {
+  margin: 0;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-xs, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.zb-grid__note {
+  margin: 0 0 0 auto;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--zb-grid-muted);
+}
+
+/* The claim. Takes the ink, because it is the sentence a reader has to meet
+   before they meet the rows it is about. */
+.zb-grid__coverage {
+  margin: 0.5rem 0 0;
+  font-size: var(--zb-text-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--zb-grid-ink);
+  max-inline-size: 78ch;
+}
+
+/* Its qualification: what the rows have in common, and when it was true. */
+.zb-grid__predicate {
+  margin: 0.15rem 0 0;
+  font-size: var(--zb-text-xs, 0.75rem);
+  color: var(--zb-grid-muted);
+  max-inline-size: 78ch;
+}
+
+/*
+ * The identity line holds its space when there is nothing to say in it.
+ *
+ * Hidden rather than absent: a footer that appears on the first click moves
+ * every row above it by its own height, under a pointer already travelling.
+ * And "No row selected." is a sentence that tells a reader something they can
+ * see, so it is only there for the screen reader that cannot.
+ */
+.zb-grid__readingline[data-empty="true"] {
+  /*
+   * Muted, not faded.
+   *
+   * This was `--zb-grid-subtle` at 0.55 opacity and measured 2.1:1, which axe
+   * caught. Subtle is already the quiet end of the scale and it is calibrated
+   * against the surface; multiplying it by an opacity takes it somewhere
+   * nobody checked. Quiet is a tone, not a transparency.
+   */
+  color: var(--zb-grid-muted);
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------- */
+/* The strip: one slot, two possible occupants                       */
+/* ---------------------------------------------------------------- */
+
+/*
+ * A single grid cell that both the arrivals line and the selection bar are
+ * laid into, so the slot is as tall as the taller of the two whether or not
+ * anything is selected.
+ *
+ * They used to be two conditional blocks in the flow, and the selection bar
+ * appearing on the first click moved every row down by its own height — under
+ * a pointer already travelling towards the next checkbox. In a caseload that
+ * is the wrong-client error, produced by the layout rather than by the reader.
+ */
+.zb-grid__strip {
+  display: grid;
+  border-block-end: 1px solid var(--zb-grid-rule);
+  background: var(--zb-grid-sunk);
+}
+
+.zb-grid__strip > * {
+  grid-area: 1 / 1;
+}
+
+/*
+ * Hidden, not unmounted.
+ *
+ * `visibility: hidden` keeps the box — which is the whole point, since the box
+ * is what holds the height — while taking the element out of the accessibility
+ * tree, silencing its live region and making it unclickable.
+ */
+.zb-grid__strip > [data-zb-on="false"] {
+  visibility: hidden;
+}
+
+.zb-grid__held {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  /*
+   * Tight, because it is a rule with a sentence on it rather than a toolbar.
+   * It was 0.35rem of padding around a control that then claimed a 44px
+   * minimum height, so the strip stood half an inch tall carrying one line of
+   * 10px text and read as an empty band between the masthead and the header.
+   */
+  min-block-size: 2rem;
+  padding: 0.2rem var(--zb-grid-pad-x);
+}
+
+.zb-grid__heldline {
+  margin: 0;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--zb-grid-ink);
+}
+
+/*
+ * 26px, not the density target.
+ *
+ * `--zb-density-target` is 2.75rem — the size of something a thumb finds on a
+ * tablet, and three times the height of the label inside it. The same borrowed
+ * token made the column headers half an inch tall. 26px clears the 24px floor
+ * SC 2.5.8 asks for, which is what the token was being reached for.
+ */
+.zb-grid__admit {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.625rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--zb-grid-rule-strong);
+  border-radius: var(--zb-radius-sm, 3px);
+  background: var(--zb-grid-surface);
+  color: var(--zb-grid-ink);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Hover only where there is hover: on a touch screen it sticks after the tap. */
+@media (hover: hover) {
+  .zb-grid__admit:hover {
+    border-color: var(--zb-grid-accent);
+    background: var(--zb-grid-sunk);
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Selection actions                                                 */
+/* ---------------------------------------------------------------- */
+
+/*
+ * Above the table, never over it.
+ *
+ * A floating bar is the common pattern and the wrong one here: it covers the
+ * bottom rows, which is where a reader who has just scrolled to select
+ * something is looking. It sits in the reserved strip instead, so it costs no
+ * shift at all.
+ */
+.zb-grid__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-block-size: 2.5rem;
+  padding: 0.35rem var(--zb-grid-pad-x);
+  background: var(--zb-grid-accent-bg, var(--zb-grid-sunk));
+}
+
+.zb-grid__bulkcount {
+  margin: 0;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--zb-grid-ink);
+}
+
+.zb-grid__bulkclear {
+  min-block-size: 1.625rem;
+  padding: 0 0.4rem;
+  border: 0;
+  border-radius: var(--zb-radius-sm, 3px);
+  background: none;
+  color: var(--zb-grid-muted);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .zb-grid__bulkclear:hover {
+    color: var(--zb-grid-ink);
+  }
+}
+
+.zb-grid__bulkactions {
+  margin-inline-start: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* The table                                                         */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The scroll container, and the reason the header can stick at all.
+ *
+ * `overflow: auto` makes this the scrolling ancestor, so `position: sticky` on
+ * a header cell resolves against this box rather than the viewport. Without a
+ * `max-block-size` there is nothing to scroll vertically and the sticky
+ * declaration costs nothing; with one, the header stays put over a hundred
+ * rows — which is the only reason a hundred-row grid is usable.
+ */
+.zb-grid__scroll {
+  overflow: auto;
+  overscroll-behavior-x: contain;
+}
+
+.zb-grid__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+/* Present to a screen reader, absent from the page: the masthead already says
+   this in larger type, and printing it twice is what makes a caption look
+   like a mistake. */
+.zb-grid__caption {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.zb-grid__th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0;
+  background: var(--zb-grid-surface);
+  border-block-end: 1px solid var(--zb-grid-ink);
+  border-inline-end: 1px solid var(--zb-grid-rule);
+  vertical-align: bottom;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- */
+/* Pinned columns                                                    */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The identity column, kept.
+ *
+ * Scrolled twelve columns to the right with no name in view, every row is the
+ * same row — which is the wrong-patient error with the grid holding the door.
+ * `left` is measured and written by the component rather than declared here,
+ * so a pinned column does not have to give up its flexible width to be pinned.
+ *
+ * The seam is a shadow rather than a border: a border would change the column's
+ * width the moment pinning was turned on, and a grid that reflows when you pin
+ * a column has moved every cell under the pointer.
+ */
+.zb-grid__pin {
+  position: sticky;
+  z-index: 1;
+  background: var(--zb-grid-surface);
+}
+
+/* The corner: above the sticky header and above the pinned body cells. */
+.zb-grid__th.zb-grid__pin {
+  z-index: 3;
+}
+
+/*
+ * The seam, on the last pinned cell and only once something is under it.
+ *
+ * It used to be an inset shadow on the first unpinned cell, which is the cell
+ * that scrolls away — so the seam left with the content it was meant to divide
+ * the pinned column from. Drawn from the pinned cell instead, it stays at the
+ * boundary. Hidden at rest, so a grid that fits its box looks as it always did.
+ */
+.zb-grid__pin--edge::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 100%;
+  inline-size: 6px;
+  pointer-events: none;
+  /*
+   * A rule as well as a shadow. A collapsed border stays where the table put
+   * it rather than travelling with a sticky cell, so the column's own rule is
+   * gone once content scrolls under it, and a black shadow alone is invisible
+   * on a dark surface.
+   */
+  border-inline-start: 1px solid var(--zb-grid-rule);
+  background: linear-gradient(to right, rgb(0 0 0 / 0.12), transparent);
+  opacity: 0;
+}
+
+.zb-grid__scroll[data-zb-scrolled="true"] .zb-grid__pin--edge::after {
+  opacity: 1;
+}
+
+.zb-grid__tr--current > .zb-grid__pin {
+  background: var(--zb-grid-sunk);
+}
+
+/* ---------------------------------------------------------------- */
+/* Selection                                                         */
+/* ---------------------------------------------------------------- */
+
+.zb-grid__th--select,
+.zb-grid__td--select {
+  inline-size: 2.5rem;
+  padding-inline: 0.625rem;
+  text-align: center;
+}
+
+.zb-grid__th--select {
+  padding-block: 0.3rem;
+}
+
+/*
+ * A real checkbox.
+ *
+ * Not a styled span: `indeterminate` has no ARIA equivalent that a screen
+ * reader announces as reliably, the native control is already in the tab order
+ * with the right role, and forced-colors mode draws it correctly for free.
+ * `accent-color` is the whole skin.
+ */
+.zb-grid__check {
+  inline-size: 0.9375rem;
+  block-size: 0.9375rem;
+  margin: 0;
+  accent-color: var(--zb-grid-accent);
+  cursor: pointer;
+}
+
+/*
+ * A 24px target around a 15px box.
+ *
+ * The box stays the size a dense ledger wants; the label around it takes the
+ * tap. The label hugs the box — an inline-block with no line height of its
+ * own, sitting on the same baseline — so the row lays out exactly as it did and
+ * the extra area is centred on the box rather than on the line of text. The
+ * pseudo-element is that area: a tap on it is a tap on the label, which toggles
+ * the checkbox.
+ */
+.zb-grid__hit {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.zb-grid__hit::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  inline-size: 2.25rem;
+  /* 26px: over the 24px floor with margin, under the 27px compact row, so two
+     rows' targets never overlap. */
+  block-size: 1.625rem;
+  transform: translate(-50%, -50%);
+}
+
+/* Selection paints below, after the current row, because the two states
+   collide on the same cells and the later rule has to be selection. */
+
+.zb-grid__th:last-child,
+.zb-grid__td:last-child {
+  border-inline-end: 0;
+}
+
+/* The header cell's content is the tab stop, so the button and the static
+   span have to be the same box. */
+.zb-grid__sort,
+.zb-grid__static {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  inline-size: 100%;
+  /*
+   * 1.75rem, not the density target.
+   *
+   * `--zb-density-target` is 2.75rem at standard density — a pointer target
+   * for a control somebody taps. A column header is a 10px label, and giving
+   * it a 44px box put half an inch of nothing above every worklist. 28px
+   * clears the 24px floor SC 2.5.8 asks for with room to spare, which is what
+   * the token was being borrowed for.
+   */
+  min-block-size: 1.75rem;
+  padding: 0.3rem var(--zb-grid-pad-x);
+  border: 0;
+  background: none;
+  color: var(--zb-grid-muted);
+  font: inherit;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: inherit;
+}
+
+.zb-grid__sort {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .zb-grid__sort:hover {
+    color: var(--zb-grid-ink);
+    background: var(--zb-grid-sunk);
+  }
+}
+
+.zb-grid__th--end .zb-grid__sort,
+.zb-grid__th--end .zb-grid__static {
+  justify-content: flex-end;
+}
+
+/* Sorted columns take the ink and the weight, and carry a glyph. Three cues,
+   none of them a colour. */
+.zb-grid__th--sorted .zb-grid__sort {
+  color: var(--zb-grid-ink);
+}
+
+.zb-grid__arrow {
+  font-family: var(--zb-font-sans, inherit);
+}
+
+.zb-grid__mark {
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 0;
+  color: var(--zb-grid-accent);
+}
+
+.zb-grid__tr {
+  border-block-end: 1px solid var(--zb-grid-rule);
+}
+
+.zb-grid__tr:last-child {
+  border-block-end: 0;
+}
+
+.zb-grid__td {
+  padding: var(--zb-grid-pad-y) var(--zb-grid-pad-x);
+  border-inline-end: 1px solid var(--zb-grid-rule);
+  /*
+   * Centred, not baseline.
+   *
+   * Baseline is the right answer for a table of single-line cells and the
+   * wrong one the moment any cell has two lines in it — which the identity
+   * cell does, because a name is not an identifier and both belong on the row.
+   * Every value in the row then sits on the *second* line's baseline, a third
+   * of a row lower than the name it belongs to, and the whole grid reads as
+   * misaligned rather than as dense.
+   */
+  vertical-align: middle;
+}
+
+.zb-grid__td--end {
+  text-align: end;
+}
+
+/* Digits that have to stack into a column a reader can scan without reading
+   them. Every numeric kind, and identifiers, which are digits that are not a
+   quantity but still have to line up. */
+.zb-grid__td--number,
+.zb-grid__td--measure,
+.zb-grid__td--identifier,
+.zb-grid__td--instant {
+  font-family: var(--zb-font-numeric, var(--zb-font-mono, ui-monospace, monospace));
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/*
+ * An identifier is never broken across two lines, and neither is a time.
+ *
+ * A wrapped MRN is a misread MRN: "4W-​07" over two lines reads as two
+ * fields, and the whole reason `identifier` is a kind of its own is that its
+ * digits are a name rather than a quantity. The column gets a scrollbar before
+ * the value gets a line break — which is the right trade, because a horizontal
+ * scrollbar is visible and a wrapped identifier is not.
+ */
+.zb-grid__td--identifier,
+.zb-grid__td--instant {
+  white-space: nowrap;
+}
+
+/*
+ * The current row, marked in the margin.
+ *
+ * A marker rather than a background: a tint is the first thing a print or a
+ * photocopy loses, and it is also what a reader with a colour deficiency is
+ * least likely to see. The rule is inset so it does not move the cell.
+ */
+.zb-grid__tr--current > .zb-grid__td:first-child {
+  box-shadow: inset 3px 0 0 var(--zb-grid-ink);
+}
+
+.zb-grid__tr--current > .zb-grid__td {
+  background: var(--zb-grid-sunk);
+}
+
+/*
+ * The selected rows, in the same colour as the bar that counts them.
+ *
+ * `--zb-grid-accent-bg`, not `--zb-grid-sunk`. Two things were wrong with the
+ * neutral: the bulk bar reporting "3 selected" is drawn in the accent tint, so
+ * the bar and the rows it refers to did not look related; and `sunk` is also
+ * the current row's ground, which made a row you had merely arrived at
+ * indistinguishable from a row you had chosen — in a worklist where the next
+ * action applies to the selection and not to the cursor.
+ *
+ * Declared after the current row and at the same specificity, so a selected
+ * row you are standing on reads as selected. The cursor is still marked: the
+ * inset rule in the first cell is a marker rather than a tint precisely so it
+ * survives being layered over something else.
+ *
+ * The pinned cells take it too. Leaving them `sunk` put a grey seam down the
+ * left of every selected row at the pin boundary.
+ */
+.zb-grid__tr--selected > .zb-grid__td,
+.zb-grid__tr--selected > .zb-grid__pin {
+  background: var(--zb-grid-accent-bg);
+}
+
+/*
+ * Absence, set as a word in italic.
+ *
+ * Italic rather than a colour or a dash, because it has to read as "there is
+ * no value and here is why" on a monochrome page. The em dash this replaces
+ * cannot distinguish a specimen in the lab from a record this reader may not
+ * see, and those are different clinical situations.
+ */
+.zb-grid__absent {
+  font-style: italic;
+  color: var(--zb-grid-muted);
+}
+
+/* ---------------------------------------------------------------- */
+/* Focus                                                             */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The cell is the tab stop, and its ring is drawn inside it.
+ *
+ * An outline on a `td` inside `border-collapse: collapse` is clipped by the
+ * neighbouring cell's border on two sides, so half the ring goes missing on
+ * exactly the cells at the edge of a scroll container — which is where a
+ * keyboard user most needs it.
+ */
+.zb-grid__td:focus-visible,
+.zb-grid__sort:focus-visible,
+.zb-grid__static:focus-visible,
+.zb-grid__admit:focus-visible,
+.zb-grid__bulkclear:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 2px var(--zb-focus-ring, #0d9488),
+    inset 0 0 0 4px var(--zb-grid-surface);
+}
+
+.zb-grid__tr--current > .zb-grid__td:first-child:focus-visible {
+  box-shadow:
+    inset 3px 0 0 var(--zb-grid-ink),
+    inset 0 0 0 2px var(--zb-focus-ring, #0d9488),
+    inset 0 0 0 4px var(--zb-grid-surface);
+}
+
+/* ---------------------------------------------------------------- */
+/* The foot of the ledger                                            */
+/* ---------------------------------------------------------------- */
+
+.zb-grid__foot {
+  border-block-start: 2px solid var(--zb-grid-ink);
+  padding: 0.55rem var(--zb-grid-pad-x) 0.7rem;
+}
+
+/*
+ * The "read by" line.
+ *
+ * A ledger has one, and this is it: the row the reader is on, named where
+ * they are about to act rather than at the top of a screen they read four
+ * minutes ago. Acting on the wrong row is the retract-and-reorder error, and
+ * re-stating the identifier at the point of action is the intervention that
+ * measurably reduces it.
+ */
+.zb-grid__reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.4rem;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-xs, 0.75rem);
+}
+
+.zb-grid__readinglabel {
+  font-size: var(--zb-text-2xs, 0.625rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--zb-grid-muted);
+}
+
+.zb-grid__readingline {
+  font-weight: 500;
+}
+
+.zb-grid__sorted {
+  margin: 0 0 0.4rem;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 2px solid var(--zb-grid-ink);
+  font-size: var(--zb-text-xs, 0.75rem);
+  color: var(--zb-grid-ink);
+}
+
+/* ---------------------------------------------------------------- */
+/* Nothing matched                                                   */
+/* ---------------------------------------------------------------- */
+
+.zb-grid__emptycell {
+  padding: 2.25rem var(--zb-grid-pad-x);
+  text-align: center;
+}
+
+.zb-grid__empty {
+  margin: 0;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--zb-grid-muted);
+}
+
+/* ---------------------------------------------------------------- */
+/* The end of the list                                               */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The sentinel, and what it says while it waits.
+ *
+ * A line of text rather than a spinner. "Loading more clients…" is a sentence
+ * a screen reader reads out and a sighted reader can act on; a spinner is a
+ * shape that says something is happening and never says what or how much is
+ * left. It sits inside the scroll container after the last row, which is the
+ * only place a browser can tell you the reader reached the end.
+ *
+ * A fixed height, so the list does not shorten by a line every time a batch
+ * lands — the exact jitter infinite scroll is notorious for.
+ */
+.zb-grid__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.75rem;
+  padding: 0.5rem var(--zb-grid-pad-x);
+  border-block-start: 1px solid var(--zb-grid-rule);
+}
+
+.zb-grid__moreline {
+  margin: 0;
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  letter-spacing: 0.06em;
+  color: var(--zb-grid-muted);
+}
+
+.zb-grid__notes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.zb-grid__noteitem {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  line-height: 1.55;
+  color: var(--zb-grid-muted);
+}
+
+.zb-grid__notemark {
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  color: var(--zb-grid-accent);
+}
+
+/* ---------------------------------------------------------------- */
+/* Refusal                                                           */
+/* ---------------------------------------------------------------- */
+
+/*
+ * Not an error state.
+ *
+ * The grid was asked to hold more rows than it can render honestly and is
+ * saying so. The alternative — accepting them and taking nine seconds to
+ * paint — has not failed loudly; it has taught the reader that the software
+ * is slow, which is what people say right before they stop trusting what is
+ * on the screen.
+ */
+.zb-grid__refusal {
+  margin: 0;
+  padding: 0.9rem var(--zb-grid-pad-x);
+  font-size: var(--zb-text-xs, 0.75rem);
+  color: var(--zb-grid-ink);
+  max-inline-size: 68ch;
+}
+
+/* ---------------------------------------------------------------- */
+/* Forced colours                                                    */
+/* ---------------------------------------------------------------- */
+
+@media (forced-colors: active) {
+  .zb-grid,
+  .zb-grid__th,
+  .zb-grid__td,
+  .zb-grid__tr,
+  .zb-grid__masthead,
+  .zb-grid__strip,
+  .zb-grid__held,
+  .zb-grid__foot {
+    border-color: CanvasText;
+  }
+
+  /* The tint goes; the margin marker is a border, so it survives. */
+  .zb-grid__tr--current > .zb-grid__td {
+    background: Canvas;
+  }
+
+  /* Selection goes the same way, and for the same reason: an author colour is
+     not honoured here, and the checkbox is a real one that forced-colors
+     already draws correctly. The tint was never the signal. */
+  .zb-grid__tr--selected > .zb-grid__td,
+  .zb-grid__tr--selected > .zb-grid__pin {
+    background: Canvas;
+  }
+
+  .zb-grid__tr--current > .zb-grid__td:first-child {
+    box-shadow: none;
+    border-inline-start: 3px solid Highlight;
+  }
+
+  .zb-grid__td:focus-visible,
+  .zb-grid__sort:focus-visible,
+  .zb-grid__static:focus-visible,
+  .zb-grid__admit:focus-visible {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
+  }
+
+  .zb-grid__mark,
+  .zb-grid__notemark {
+    color: LinkText;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Print                                                             */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The claim this direction makes, kept.
+ *
+ * A worklist gets printed and carried, so the printed copy has to be the
+ * document rather than a screenshot of a screen. The header repeats on every
+ * page, rows do not break across a fold, the held-arrivals control drops (it
+ * is not actionable on paper) while its count stays, and the footnotes print,
+ * because a page of numbers with no note explaining which of them a model
+ * produced is the sheet that gets acted on wrongly.
+ */
+@media print {
+  .zb-grid {
+    border-color: #000;
+    background: #fff;
+    color: #000;
+  }
+
+  .zb-grid__scroll {
+    overflow: visible;
+  }
+
+  .zb-grid__headrow {
+    display: table-header-group;
+  }
+
+  .zb-grid__tr {
+    break-inside: avoid;
+  }
+
+  .zb-grid__tr--current > .zb-grid__td {
+    background: transparent;
+  }
+
+  /* The reader on screen is not the reader on paper, so the marker and the
+     "Reading" line are dropped rather than frozen onto whoever happened to be
+     focused when Print was pressed. */
+  .zb-grid__tr--current > .zb-grid__td:first-child {
+    box-shadow: none;
+  }
+
+  .zb-grid__admit,
+  .zb-grid__reading {
+    display: none;
+  }
+
+  .zb-grid__masthead,
+  .zb-grid__foot {
+    border-color: #000;
+  }
+}
