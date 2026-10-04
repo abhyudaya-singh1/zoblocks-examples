@@ -1,0 +1,211 @@
+/*
+ * The chrome around the demo: tabs, buttons, fields, a switch and a checkbox.
+ *
+ * ZoBlocks ships no Button, so these are the demo's own, adapted from ZoBlocks's
+ * reference host chrome (packages/host-react/src/host.css). Geometry only:
+ * every colour comes from the --zb-* tokens, so they follow the theme like the
+ * menu does.
+ */
+
+/* Button ---------------------------------------------------------------- */
+.demo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.25rem;
+  padding-inline: 0.95rem;
+  border: 1px solid transparent;
+  border-radius: var(--zb-radius, 0.5rem);
+  background: var(--zb-accent);
+  color: var(--zb-text-on-accent);
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-text-base, 0.875rem);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.demo-btn:hover {
+  background: var(--zb-accent-hover);
+}
+
+/* "default" is the outlined one. */
+.demo-btn[data-variant="default"] {
+  background: var(--zb-surface);
+  color: var(--zb-text);
+  border-color: var(--zb-border-strong);
+}
+
+.demo-btn[data-variant="default"]:hover {
+  background: var(--zb-surface);
+  color: var(--zb-accent);
+  border-color: var(--zb-accent);
+}
+
+.demo-btn[data-variant="text"] {
+  background: transparent;
+  color: var(--zb-text);
+}
+
+.demo-btn[data-variant="text"]:hover {
+  background: var(--zb-bg-muted);
+}
+
+/* Fields: the input and the select share one shell ---------------------- */
+.demo-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+
+.demo-field__label {
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-text-xs, 0.75rem);
+  line-height: 1.2;
+  color: var(--zb-text-muted);
+}
+
+.demo-field__input {
+  inline-size: 100%;
+  min-block-size: 2.25rem;
+  padding-inline: 0.7rem;
+  border: 1px solid var(--zb-border-strong);
+  border-radius: var(--zb-radius, 0.5rem);
+  background: var(--zb-surface);
+  color: var(--zb-text);
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-text-base, 0.875rem);
+  transition: border-color 180ms ease;
+}
+
+.demo-field__input::placeholder {
+  color: var(--zb-text-subtle);
+}
+
+.demo-field__input:hover {
+  border-color: var(--zb-accent);
+}
+
+.demo-select {
+  appearance: none;
+  padding-inline-end: 1.9rem;
+  cursor: pointer;
+  /* The chevron is two gradients, so there is no image file to host. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.05rem) 55%,
+    calc(100% - 0.75rem) 55%;
+  background-size:
+    0.3rem 0.3rem,
+    0.3rem 0.3rem;
+  background-repeat: no-repeat;
+}
+
+/* Switch ---------------------------------------------------------------- */
+.demo-switch {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  inline-size: 2.5rem;
+  block-size: 1.4rem;
+  padding: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--zb-border-strong);
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.demo-switch[aria-checked="true"] {
+  background: var(--zb-accent);
+}
+
+.demo-switch__thumb {
+  display: block;
+  inline-size: calc(1.4rem - 6px);
+  block-size: calc(1.4rem - 6px);
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 180ms ease;
+}
+
+.demo-switch[aria-checked="true"] .demo-switch__thumb {
+  transform: translateX(calc(2.5rem - 1.4rem));
+}
+
+/* Checkbox -------------------------------------------------------------- */
+.demo-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-text-base, 0.875rem);
+  color: var(--zb-text);
+  cursor: pointer;
+}
+
+.demo-check input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+  accent-color: var(--zb-accent);
+  cursor: pointer;
+}
+
+/* Tabs ------------------------------------------------------------------ */
+.demo-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-block-end: 1px solid var(--zb-border);
+}
+
+.demo-tab {
+  margin-block-end: -1px;
+  padding: 0.5rem 0.85rem;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: none;
+  color: var(--zb-text-muted);
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-text-base, 0.875rem);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 180ms ease;
+}
+
+.demo-tab:hover {
+  color: var(--zb-text);
+}
+
+.demo-tab[aria-current="true"] {
+  color: var(--zb-accent);
+  border-block-end-color: var(--zb-accent);
+}
+
+/* Focus: one visible ring for every control ------------------------------ */
+.demo-btn:focus-visible,
+.demo-field__input:focus-visible,
+.demo-switch:focus-visible,
+.demo-check input:focus-visible,
+.demo-tab:focus-visible {
+  outline: 2px solid var(--zb-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-btn,
+  .demo-field__input,
+  .demo-switch,
+  .demo-switch__thumb,
+  .demo-tab {
+    transition-duration: 1ms;
+  }
+}

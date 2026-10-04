@@ -1,0 +1,684 @@
+/**
+ * ChartContextMenu — a popup whose first row is not a verb.
+ *
+ * Three things here are load-bearing rather than decorative.
+ *
+ * The subject header is a *surface*, not a row: it must read as inert in
+ * every theme, including forced-colours mode where its background is thrown
+ * away — so it carries a border as well as a tint.
+ *
+ * The confirmation and reason strips are drawn *under the row they belong to*
+ * rather than replacing the list. Rows above them do not move, so the pointer
+ * is still over the verb it chose when the second step appears.
+ *
+ * A pending row is a placeholder at its final height. Every alternative —
+ * omitting it, appending it later, collapsing it to zero — moves the rows
+ * below it under a pointer that is already in flight.
+ */
+
+.zb-menu {
+  /*
+   * Fixed, and portalled into `<body>`. Viewport coordinates are what a
+   * pointer event gives you, and translating them into some ancestor's
+   * coordinate space is one `overflow: hidden` away from a menu clipped by
+   * the pane it opened in.
+   */
+  position: fixed;
+  z-index: 60;
+  /*
+   * Three rows: the subject, the list, the withheld count. Only the middle one
+   * scrolls, so a long menu never scrolls its own subject out of view — which
+   * would defeat the whole point of having one.
+   */
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-inline-size: 15.75rem;
+  max-inline-size: 20rem;
+  border: 1px solid var(--zb-menu-border, var(--zb-border, #e2e8f0));
+  border-radius: var(--zb-menu-radius, var(--zb-radius-lg, 8px));
+  background: var(--zb-menu-bg, var(--zb-surface-overlay, var(--zb-surface, #ffffff)));
+  color: var(--zb-text, inherit);
+  box-shadow: var(--zb-shadow-lg, 0 12px 32px rgb(0 0 0 / 0.18));
+  font-family: var(--zb-font-sans, inherit);
+  font-size: var(--zb-text-sm, 0.875rem);
+  /* Set from the quadrant the menu opened into, so the entrance reads as
+     coming *from* the click rather than as a panel arriving from nowhere. */
+  transform-origin: var(--zb-menu-origin, top left);
+  animation: zb-menu-in var(--zb-duration-fast, 140ms) var(--zb-ease, cubic-bezier(0.16, 1, 0.3, 1))
+    both;
+}
+
+/*
+ * Portalled into something other than `<body>` — a contained pane, a docs
+ * card, a test canvas. The container is the offset parent, so the coordinates
+ * the component computes are rebased and the popup is absolute rather than
+ * fixed. The container needs a positioning context of its own.
+ */
+.zb-menu[data-zb-contained] {
+  position: absolute;
+}
+
+@keyframes zb-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+}
+
+.zb-menu:focus {
+  /* The popup takes focus on open so Escape and the arrow keys have a target.
+     It is not itself an interactive control, and a ring around the whole
+     surface reads as an error state. Rows carry the visible focus. */
+  outline: none;
+}
+
+/* ---------------------------------------------------------------- */
+/* The subject. Always first, never interactive.                     */
+/* ---------------------------------------------------------------- */
+
+.zb-menu__subject {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.625rem 0.75rem;
+  border-block-end: 1px solid var(--zb-menu-subject-border, var(--zb-border, #e2e8f0));
+  border-start-start-radius: inherit;
+  border-start-end-radius: inherit;
+  background: var(--zb-menu-subject-bg, var(--zb-bg-muted, #f1f5f9));
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+ * The row being long-pressed, on a touch screen.
+ *
+ * The menu opens after a 500ms hold, and without this the same hold selects
+ * the row's text and raises the iOS callout over the menu it just opened.
+ * Coarse pointers only, so a mouse can still select and copy a row.
+ */
+@media (pointer: coarse) {
+  [data-zb-menu] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.zb-menu__avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 1px solid var(--zb-border, #e2e8f0);
+  border-radius: 50%;
+  background: var(--zb-surface, #ffffff);
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  font-weight: 600;
+}
+
+.zb-menu__who {
+  display: block;
+  overflow: hidden;
+  font-size: var(--zb-text-xs, 0.75rem);
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zb-menu__what {
+  display: block;
+  overflow: hidden;
+  color: var(--zb-text-subtle, #94a3b8);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A masked header is standing in for a record it may not describe, and it
+   should look like it is doing that rather than like a name that is short. */
+.zb-menu__subject[data-zb-masked] .zb-menu__who {
+  color: var(--zb-status-restricted, var(--zb-text-muted, #64748b));
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------- */
+/* Structure                                                         */
+/* ---------------------------------------------------------------- */
+
+.zb-menu__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.25rem;
+}
+
+.zb-menu__group {
+  padding: 0.5rem 0.75rem 0.125rem;
+  color: var(--zb-text-subtle, #94a3b8);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.zb-menu__separator {
+  block-size: 1px;
+  margin-block: 0.25rem;
+  border: 0;
+  background: var(--zb-menu-sep, var(--zb-border, #e2e8f0));
+}
+
+/* ---------------------------------------------------------------- */
+/* Rows                                                              */
+/* ---------------------------------------------------------------- */
+
+.zb-menu__item {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  /*
+   * 1.875rem = 30px, comfortably above the 24px floor WCAG 2.2 SC 2.5.8 sets
+   * for a pointer target. `max()` with the density floor rather than a bare
+   * value, so a denser profile cannot take it under the criterion.
+   */
+  min-block-size: max(1.875rem, var(--zb-density-target-floor, 1.5rem));
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zb-text-sm, 0.8125rem);
+  text-align: start;
+  cursor: pointer;
+}
+
+.zb-menu__item:hover,
+.zb-menu__item[data-zb-active] {
+  background: var(--zb-menu-row-hover-bg, var(--zb-bg-muted, #f1f5f9));
+}
+
+.zb-menu__item:focus-visible {
+  outline: 2px solid var(--zb-focus-ring, var(--zb-accent, #1677ff));
+  outline-offset: -2px;
+}
+
+.zb-menu__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--zb-text-subtle, #94a3b8);
+}
+
+.zb-menu__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zb-menu__shortcut {
+  color: var(--zb-text-subtle, #94a3b8);
+  font-family: var(--zb-font-mono, ui-monospace, monospace);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+ * The second line: what a recorded action writes, or why a blocked one
+ * cannot run. Both are shown; neither is a `title` attribute, because a
+ * tooltip is not available to the person using a keyboard, and this is
+ * exactly the text that person needs most.
+ */
+.zb-menu__note {
+  grid-column: 2 / -1;
+  margin-block-start: 0.0625rem;
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.zb-menu__chevron {
+  color: var(--zb-text-subtle, #94a3b8);
+}
+
+/* ---- tiers ------------------------------------------------------ */
+/*
+ * Colour is the last thing carrying the tier, never the only one: each row
+ * also has a glyph, a band position and — above `routine` — a sentence. All
+ * four hues resolve through semantic tokens that already exist and are
+ * already in the contrast gate, so no new colour pair enters the system.
+ */
+
+.zb-menu__item[data-zb-tier="documented"] .zb-menu__icon {
+  color: var(--zb-accent, #0e7c66);
+}
+
+.zb-menu__item[data-zb-tier="clinical"] .zb-menu__icon {
+  color: var(--zb-status-high, #b45309);
+}
+
+.zb-menu__item[data-zb-tier="disclosive"] .zb-menu__icon,
+.zb-menu__item[data-zb-tier="disclosive"] .zb-menu__label {
+  color: var(--zb-status-restricted, #7c3aed);
+}
+
+.zb-menu__item[data-zb-tier="clinical"]:hover,
+.zb-menu__item[data-zb-tier="clinical"][data-zb-active] {
+  background: var(--zb-status-high-bg, #fffbeb);
+}
+
+.zb-menu__item[data-zb-tier="disclosive"]:hover,
+.zb-menu__item[data-zb-tier="disclosive"][data-zb-active] {
+  background: var(--zb-status-restricted-bg, #f5f3ff);
+}
+
+/* ---- unavailable ------------------------------------------------ */
+/*
+ * `aria-disabled`, not `disabled`: the row stays reachable so a keyboard user
+ * can read the reason. A row that is skipped is hidden from them and left on
+ * screen for everyone else.
+ */
+
+.zb-menu__item[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.zb-menu__item[aria-disabled="true"] .zb-menu__label {
+  color: var(--zb-text-subtle, #94a3b8);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.zb-menu__item[aria-disabled="true"] .zb-menu__icon {
+  color: var(--zb-text-subtle, #94a3b8);
+}
+
+.zb-menu__item[aria-disabled="true"]:hover {
+  background: transparent;
+}
+
+.zb-menu__item[aria-disabled="true"][data-zb-active] {
+  /* Still shows where the highlight is — it is reachable, so it must be
+     visible when reached. Fainter than a runnable row. */
+  background: var(--zb-bg-subtle, #f8fafc);
+}
+
+/* ---- pending ---------------------------------------------------- */
+
+.zb-menu__item[data-zb-pending] {
+  cursor: progress;
+}
+
+.zb-menu__skeleton {
+  grid-column: 2;
+  inline-size: 62%;
+  block-size: 0.5625rem;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--zb-bg-muted, #f1f5f9) 25%,
+    var(--zb-bg-subtle, #f8fafc) 37%,
+    var(--zb-bg-muted, #f1f5f9) 63%
+  );
+  background-size: 400% 100%;
+  animation: zb-menu-skeleton var(--zb-duration-skeleton-loop, 1.4s) ease infinite;
+}
+
+@keyframes zb-menu-skeleton {
+  from {
+    background-position: 100% 50%;
+  }
+
+  to {
+    background-position: 0 50%;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* The withheld count. A row inside the menu, not a footnote under it.*/
+/* ---------------------------------------------------------------- */
+
+.zb-menu__withheld {
+  display: grid;
+  margin: 0.125rem 0 0;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.4375rem 0.75rem 0.5rem;
+  border-block-start: 1px solid var(--zb-menu-sep, var(--zb-border, #e2e8f0));
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  line-height: 1.45;
+}
+
+.zb-menu__withheld .zb-menu__icon {
+  margin-block-start: 0.0625rem;
+}
+
+/* The two empty states, which read differently on purpose. */
+.zb-menu__empty {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------- */
+/* Step two                                                          */
+/* ---------------------------------------------------------------- */
+
+.zb-menu__confirm {
+  margin: 0.1875rem 0.375rem;
+  padding: 0.5625rem 0.625rem;
+  border: 1px solid var(--zb-status-high-border, #fcd34d);
+  border-radius: var(--zb-radius, 6px);
+  background: var(--zb-status-high-bg, #fffbeb);
+  color: var(--zb-text, inherit);
+  font-size: var(--zb-text-xs, 0.75rem);
+  line-height: 1.5;
+}
+
+.zb-menu__prompt {
+  margin: 0;
+  font-weight: 600;
+}
+
+.zb-menu__bulk-prompt {
+  margin: 0.25rem 0 0;
+  color: var(--zb-text-muted, #64748b);
+}
+
+.zb-menu__actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-block-start: 0.5rem;
+}
+
+.zb-menu__button {
+  min-block-size: max(1.5rem, var(--zb-density-target-floor, 1.5rem));
+  padding-inline: 0.5625rem;
+  border: 1px solid var(--zb-border-strong, #cbd5e1);
+  border-radius: var(--zb-radius-sm, 4px);
+  background: var(--zb-surface, #ffffff);
+  color: inherit;
+  font: inherit;
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  cursor: pointer;
+}
+
+.zb-menu__button[data-zb-primary] {
+  border-color: var(--zb-accent, #0e7c66);
+  background: var(--zb-accent, #0e7c66);
+  color: var(--zb-text-on-accent, #ffffff);
+  font-weight: 600;
+}
+
+.zb-menu__button:focus-visible {
+  outline: 2px solid var(--zb-focus-ring, var(--zb-accent, #1677ff));
+  outline-offset: 1px;
+}
+
+/* ---- the reason list -------------------------------------------- */
+
+.zb-menu__reasons {
+  margin: 0.1875rem 0.375rem;
+  padding: 0.5625rem 0.625rem;
+  border: 1px solid var(--zb-status-restricted-border, #ddd6fe);
+  border-radius: var(--zb-radius, 6px);
+  background: var(--zb-status-restricted-bg, #f5f3ff);
+}
+
+.zb-menu__reasons-head {
+  margin: 0 0 0.4375rem;
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  line-height: 1.45;
+}
+
+.zb-menu__reasons-head strong {
+  color: var(--zb-status-restricted, #6d28d9);
+}
+
+.zb-menu__reason {
+  display: grid;
+  grid-template-columns: 0.8125rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  inline-size: 100%;
+  min-block-size: max(1.5rem, var(--zb-density-target-floor, 1.5rem));
+  padding: 0.3125rem 0.375rem;
+  border: 0;
+  border-radius: var(--zb-radius-sm, 4px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zb-text-xs, 0.75rem);
+  text-align: start;
+  cursor: pointer;
+}
+
+.zb-menu__reason:hover,
+.zb-menu__reason[data-zb-active] {
+  background: var(--zb-surface, #ffffff);
+}
+
+.zb-menu__reason:focus-visible {
+  outline: 2px solid var(--zb-focus-ring, var(--zb-accent, #1677ff));
+  outline-offset: -1px;
+}
+
+.zb-menu__reasons-foot {
+  margin: 0.4375rem 0 0;
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.625rem);
+  line-height: 1.45;
+}
+
+/* ---- indicators -------------------------------------------------- */
+
+.zb-menu__indicator {
+  display: grid;
+  place-items: center;
+  inline-size: 0.8125rem;
+  block-size: 0.8125rem;
+  border: 1.5px solid var(--zb-border-strong, #cbd5e1);
+  border-radius: 3px;
+  color: transparent;
+}
+
+.zb-menu__indicator[data-zb-shape="radio"] {
+  border-radius: 50%;
+}
+
+.zb-menu__item[aria-checked="true"] .zb-menu__indicator {
+  border-color: var(--zb-accent, #0e7c66);
+  background: var(--zb-accent, #0e7c66);
+  color: var(--zb-text-on-accent, #ffffff);
+}
+
+.zb-menu__item[aria-checked="true"] .zb-menu__indicator[data-zb-shape="radio"] {
+  background: var(--zb-surface, #ffffff);
+  box-shadow:
+    inset 0 0 0 2.5px var(--zb-surface, #ffffff),
+    inset 0 0 0 0.5rem var(--zb-accent, #0e7c66);
+}
+
+/* The live region. Rendered, never seen; an empty one announces nothing, so
+   the component writes content into it rather than leaving it blank. */
+.zb-menu__live {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- */
+/* Presentations                                                     */
+/* ---------------------------------------------------------------- */
+
+.zb-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.zb-menu--sheet {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  max-inline-size: none;
+  min-inline-size: 0;
+  /* Clear the home indicator, so the last row is not under it. */
+  padding-block-end: max(0.5rem, env(safe-area-inset-bottom));
+  border-inline: 0;
+  border-block-end: 0;
+  border-start-start-radius: 1rem;
+  border-start-end-radius: 1rem;
+  animation: zb-menu-up var(--zb-duration, 180ms) var(--zb-ease, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes zb-menu-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.zb-menu--sheet .zb-menu__subject {
+  border-radius: 0;
+}
+
+/*
+ * 2.75rem = 44px. Not because 24px would fail the criterion — it would pass —
+ * but because the sheet exists for a finger on a tablet at a bedside, and the
+ * floor is a floor rather than a target.
+ */
+.zb-menu--sheet .zb-menu__item {
+  min-block-size: 2.75rem;
+  padding-inline: 1rem;
+}
+
+.zb-menu--sheet .zb-menu__list {
+  padding-block-end: 0.5rem;
+}
+
+.zb-menu--sheet .zb-menu__group,
+.zb-menu--sheet .zb-menu__withheld,
+.zb-menu--sheet .zb-menu__subject,
+.zb-menu--sheet .zb-menu__empty {
+  padding-inline: 1rem;
+}
+
+.zb-menu__grip {
+  inline-size: 2.125rem;
+  block-size: 0.25rem;
+  margin: 0.5rem auto 0.125rem;
+  border-radius: 2px;
+  background: var(--zb-border-strong, #cbd5e1);
+}
+
+.zb-menu--anchored {
+  min-inline-size: 14.75rem;
+}
+
+/*
+ * A child menu.
+ *
+ * Narrower and with no subject header: the parent's header already named the
+ * record, and repeating it beside itself would read as a second subject rather
+ * than the same one. `z-index` is one above the parent so a child that overlaps
+ * it paints on top; both are portalled siblings, so DOM order alone would not
+ * settle it.
+ */
+.zb-menu--sub {
+  z-index: 61;
+  min-inline-size: 11rem;
+  max-inline-size: 16rem;
+  padding-block: 0;
+}
+
+/* ---- density ----------------------------------------------------- */
+
+.zb-menu[data-zb-density="compact"] .zb-menu__item {
+  min-block-size: max(1.625rem, var(--zb-density-target-floor, 1.5rem));
+  padding-block: 0.25rem;
+  padding-inline: 0.625rem;
+}
+
+.zb-menu[data-zb-density="compact"] .zb-menu__subject {
+  padding: 0.5rem 0.625rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* Reduced motion, forced colours, print                             */
+/* ---------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .zb-menu,
+  .zb-menu--sheet {
+    animation: none;
+  }
+
+  /*
+   * A *designed* still state rather than a paused sweep. A shimmer frozen
+   * mid-gradient looks like a component that failed; a dashed rule looks like
+   * a row that is waiting, which is what it is.
+   */
+  .zb-menu__skeleton {
+    border: 1px dashed var(--zb-border-strong, #cbd5e1);
+    background: none;
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .zb-menu {
+    border: 1px solid CanvasText;
+  }
+
+  /* The tint is discarded here, and the tint is what made the header read as
+     inert. The border is what survives. */
+  .zb-menu__subject {
+    border-block-end: 1px solid CanvasText;
+  }
+
+  .zb-menu__item[data-zb-active] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .zb-menu__item[aria-disabled="true"] .zb-menu__label {
+    color: GrayText;
+  }
+
+  .zb-menu__confirm,
+  .zb-menu__reasons {
+    border: 1px solid CanvasText;
+  }
+
+  .zb-menu__separator {
+    background: CanvasText;
+  }
+}
+
+/* A menu is a way of doing something. There is nothing to print. */
+@media print {
+  .zb-menu,
+  .zb-menu__backdrop {
+    display: none;
+  }
+}

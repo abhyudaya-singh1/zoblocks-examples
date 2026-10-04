@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* ZoBlocks — uncomment after `npx @zoblocks/cli add <name> --yes`,
+   and add one @import for each styles/zoblocks-*.css it writes. */
+@import "./styles/zoblocks-tokens.css";
+@import "./styles/zoblocks-menu.css";
+@import "./host-chrome.css";
+@import "./preview-frame.css";
+@source "./components/zoblocks";
+
+/* Page colours come from the ZoBlocks tokens, so light and dark both work. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--zb-bg);
+  color: var(--zb-text);
+  font-family: var(--zb-font-sans);
+}
