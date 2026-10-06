@@ -1,0 +1,310 @@
+/**
+ * ChartCommandPalette — one input, grouped results, keyboard-only operation.
+ *
+ * The two rows worth designing are the ones nobody else has: the count of
+ * matches that may not be named, and the second-Enter confirmation for a
+ * clinically significant action. Both are drawn as rows in the list rather
+ * than as chrome around it, because a reader who scrolls past chrome has
+ * missed exactly the thing they needed.
+ */
+
+.zb-palette {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: start center;
+  /* `8vh` for the same reason, capped so a short containing block keeps room
+     for the panel rather than pushing it out of view. */
+  padding: min(8vh, 12%) 1rem 1rem;
+  /* `dvh` where supported: `vh` on a phone includes the collapsed toolbar. */
+  padding: min(8dvh, 12%) 1rem 1rem;
+  background: rgb(0 0 0 / 0.4);
+  font-family: var(--zb-font-sans, inherit);
+}
+
+.zb-palette__panel {
+  display: grid;
+  /*
+   * The input keeps its height; the results absorb whatever is left.
+   *
+   * With both rows on `auto` a capped panel simply overflowed: the rows took
+   * their content heights, summed past `max-block-size`, and the results
+   * region painted through the `overflow: hidden`. `minmax(0, 1fr)` is what
+   * makes the second row shrinkable — `1fr` alone has an automatic minimum of
+   * its content and would not have helped.
+   */
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  inline-size: min(38rem, 100%);
+  /*
+   * 70% of the viewport, or all of the containing block — whichever is smaller.
+   *
+   * `70vh` alone is right on a page, where a fixed element's containing block
+   * *is* the viewport, and wrong everywhere else: mounted inside a contained
+   * region — a docs thumbnail, a dashboard tile, anything with `contain` or a
+   * transform — it claimed 630px inside a 148px box and painted through the
+   * clip. `min()` leaves the page case identical and makes the contained case
+   * fit.
+   */
+  max-block-size: min(70vh, 100%);
+  max-block-size: min(70dvh, 100%);
+  overflow: hidden;
+  border: 1px solid var(--zb-border, #e2e8f0);
+  border-radius: var(--zb-radius-lg, 8px);
+  background: var(--zb-surface, #ffffff);
+  color: var(--zb-text, inherit);
+  box-shadow: 0 24px 48px rgb(0 0 0 / 0.24);
+}
+
+.zb-palette__input {
+  inline-size: 100%;
+  min-block-size: 3rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-block-end: 1px solid var(--zb-border, #e2e8f0);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zb-text-sm, 0.9375rem);
+}
+
+/* iOS zooms the page into any focused field set below 16px. */
+@media (pointer: coarse) {
+  .zb-palette__input {
+    font-size: max(16px, 1em);
+  }
+}
+
+.zb-palette__input:focus {
+  /* The panel is the focus indicator; a ring inside a 3rem field on an already
+     modal surface is noise. The panel border thickens instead. */
+  outline: none;
+}
+
+.zb-palette__panel:focus-within {
+  border-color: var(--zb-focus-ring, var(--zb-accent, #1677ff));
+}
+
+/* ---------------------------------------------------------------- */
+/* Results                                                           */
+/* ---------------------------------------------------------------- */
+
+.zb-palette__results {
+  overflow-y: auto;
+  /*
+   * The scroll row has to be allowed to shrink.
+   *
+   * A grid item's automatic minimum size is its content, so a capped panel
+   * whose second row is `overflow-y: auto` still refuses to go below the
+   * results' natural height — and the panel overflows its own `max-block-size`
+   * by the difference. It is the classic grid min-size trap and it only shows
+   * up in a short container, which is why a full-page palette never revealed
+   * it and a 148px thumbnail did.
+   */
+  min-block-size: 0;
+  padding: 0.375rem;
+  font-size: var(--zb-text-xs, 0.75rem);
+}
+
+.zb-palette__group + .zb-palette__group {
+  margin-block-start: 0.375rem;
+  padding-block-start: 0.375rem;
+  border-block-start: 1px solid var(--zb-border, #e2e8f0);
+}
+
+.zb-palette__group-label {
+  margin: 0 0 0.125rem;
+  padding-inline: 0.5rem;
+  color: var(--zb-text-subtle, var(--zb-text-muted, #64748b));
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.zb-palette__option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-block-size: 2rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--zb-radius-sm, 4px);
+  cursor: pointer;
+}
+
+/*
+ * The active row, marked by a bar and a background.
+ *
+ * Two channels because this is a list a keyboard user navigates without
+ * looking away — a background alone at these contrast levels is easy to lose
+ * when the eye is on the input.
+ */
+.zb-palette__option[data-zb-active] {
+  background: var(--zb-bg-muted, #f1f5f9);
+  box-shadow: inset 3px 0 0 0 var(--zb-accent, #1677ff);
+}
+
+.zb-palette__label {
+  flex: 0 1 auto;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zb-palette__detail {
+  flex: 1 1 auto;
+  color: var(--zb-text-muted, #64748b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The keyboard hint for a verb that still needs its object. */
+.zb-palette__argument {
+  flex: none;
+  padding: 0.0625rem 0.3125rem;
+  border: 1px dashed var(--zb-border-strong, var(--zb-border, #cbd5e1));
+  border-radius: var(--zb-radius-sm, 4px);
+  color: var(--zb-text-muted, #64748b);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  white-space: nowrap;
+}
+
+/*
+ * A significant action, marked before it is chosen.
+ *
+ * The second Enter is the safeguard; this is the warning that there will be
+ * one, so it is not a surprise mid-keystroke.
+ */
+.zb-palette__option[data-zb-significant] .zb-palette__label::after {
+  content: "·";
+  margin-inline-start: 0.375rem;
+  color: var(--zb-status-high, #b45309);
+  font-weight: 700;
+}
+
+.zb-palette__confirm {
+  flex: none;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--zb-radius-sm, 4px);
+  background: var(--zb-status-high-bg, #fffbeb);
+  color: var(--zb-status-high, #b45309);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * Unavailable, and legible about it.
+ *
+ * Not hidden. An action that vanishes because the tablet is offline teaches
+ * somebody the feature does not exist.
+ */
+.zb-palette__option[data-zb-unavailable] {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.zb-palette__option[data-zb-unavailable] .zb-palette__label {
+  font-weight: 500;
+  text-decoration: line-through;
+}
+
+.zb-palette__unavailable {
+  flex: none;
+  color: var(--zb-status-high, #b45309);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- */
+/* What may not be named                                             */
+/*                                                                   */
+/* The whole design in one row. A reader who does not see it         */
+/* concludes the search was empty, which is the one wrong            */
+/* conclusion available.                                             */
+/* ---------------------------------------------------------------- */
+
+.zb-palette__withheld {
+  margin: 0.375rem 0 0;
+  padding: 0.4375rem 0.5rem;
+  border-block-start: 1px solid var(--zb-border, #e2e8f0);
+  border-inline-start: 3px solid var(--zb-status-restricted, #6d28d9);
+  color: var(--zb-status-restricted, #6d28d9);
+  font-weight: 600;
+}
+
+.zb-palette__empty {
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  color: var(--zb-text-muted, #64748b);
+  font-style: italic;
+}
+
+/* The live region: present, and never seen. */
+.zb-palette__sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- */
+/* Small screens                                                     */
+/*                                                                   */
+/* Full-screen, taller rows, and no shortcut hints — there is no     */
+/* keyboard to hint at.                                              */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .zb-palette {
+    padding: 0;
+  }
+
+  .zb-palette__panel {
+    inline-size: 100%;
+    block-size: 100%;
+    max-block-size: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .zb-palette__option {
+    min-block-size: 2.75rem;
+  }
+
+  .zb-palette__argument {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Forced colors and print                                           */
+/* ---------------------------------------------------------------- */
+
+@media (forced-colors: active) {
+  .zb-palette__option[data-zb-active] {
+    background: Highlight;
+    color: HighlightText;
+    box-shadow: none;
+    outline: 2px solid CanvasText;
+  }
+
+  .zb-palette__withheld {
+    border-inline-start-color: CanvasText;
+  }
+}
+
+/* A palette is a way of getting somewhere. There is nothing to print. */
+@media print {
+  .zb-palette {
+    display: none;
+  }
+}
