@@ -1,0 +1,658 @@
+/**
+ * ZoBlocks accordion — structure, motion, and the three states that are not decoration.
+ *
+ * Install target: styles/zoblocks-accordion.css. Import it once, next to the
+ * token stylesheet:
+ *
+ *   @import "./styles/zoblocks-tokens.css";
+ *   @import "./styles/zoblocks-accordion.css";
+ *
+ * Two deliberate choices, matching the loaders:
+ *
+ *   1. No Tailwind utilities. The open/close transition needs a property
+ *      Tailwind cannot express, and a component whose layout depends on the
+ *      host's Tailwind config renders unstyled in someone else's build.
+ *   2. Every colour is a semantic or component token, never a palette value, so
+ *      a brand override reaches this file without editing it.
+ *
+ * The one piece of real cleverness is the hiding strategy, and it is worth
+ * reading before changing anything below.
+ *
+ *   A closed panel carries `hidden="until-found"`, so find-in-page and fragment
+ *   navigation can reveal it. That attribute is specified as
+ *   `content-visibility: hidden` rather than `display: none`, which means the
+ *   element still generates a box — and a box can be transitioned.
+ *
+ *   But this file also sets `display: grid` on the panel, and an author
+ *   declaration beats the UA's `[hidden] { display: none }`. In a browser
+ *   without `until-found` support that would leave the panel *visible*. So the
+ *   hiding is re-asserted explicitly for `[hidden]` in any form. The result is
+ *   the same in both: hidden from sight, hidden from the accessibility tree,
+ *   and not findable by Ctrl+F when hiding is what we meant.
+ */
+
+.zb-accordion {
+  --zb-accordion-rail: transparent;
+
+  display: block;
+  border: 1px solid var(--zb-accordion-border);
+  border-radius: var(--zb-accordion-radius);
+  background: var(--zb-accordion-header-bg-open);
+  color: var(--zb-accordion-header-fg);
+  font-family: var(--zb-font-sans);
+  font-size: var(--zb-accordion-font);
+  /* Clip the first and last header into the rounded corners without needing a
+     per-item radius that would have to know its own position. */
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* Variants                                                            */
+/* ------------------------------------------------------------------ */
+
+.zb-accordion[data-variant="separate"] {
+  border: 0;
+  background: none;
+  overflow: visible;
+  display: grid;
+  gap: calc(var(--zb-accordion-gap) / 2);
+}
+
+.zb-accordion[data-variant="separate"] .zb-accordion__item {
+  border: 1px solid var(--zb-accordion-border);
+  border-radius: var(--zb-accordion-radius);
+  overflow: hidden;
+}
+
+.zb-accordion[data-variant="ghost"] {
+  border: 0;
+  background: none;
+  overflow: visible;
+}
+
+.zb-accordion[data-variant="ghost"] .zb-accordion__trigger {
+  background: none;
+}
+
+.zb-accordion[data-variant="ghost"] .zb-accordion__item + .zb-accordion__item {
+  border-block-start: 1px solid var(--zb-accordion-divider);
+}
+
+/* ------------------------------------------------------------------ */
+/* Item and header                                                     */
+/* ------------------------------------------------------------------ */
+
+.zb-accordion__item {
+  position: relative;
+}
+
+.zb-accordion[data-variant="bordered"] .zb-accordion__item + .zb-accordion__item {
+  border-block-start: 1px solid var(--zb-accordion-border);
+}
+
+/**
+ * The heading element carries no visual weight of its own.
+ *
+ * It exists so the trigger sits inside a real h1–h6 — which is what puts the
+ * section in a screen reader's heading list, and the heading list is the entire
+ * navigation model for a long chart. Resetting it here means the level can
+ * change without the design changing with it.
+ */
+.zb-accordion__heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.zb-accordion__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--zb-accordion-gap);
+  inline-size: 100%;
+  /* Never below the WCAG 2.2 AA floor, whatever the density profile says.
+     Dense means tighter rows, not smaller buttons. */
+  min-block-size: max(var(--zb-accordion-target), var(--zb-density-target-floor));
+  padding-block: var(--zb-accordion-pad-y);
+  padding-inline: var(--zb-accordion-pad-x);
+  margin: 0;
+  border: 0;
+  background: var(--zb-accordion-header-bg);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  box-shadow: inset var(--zb-accordion-rail-width) 0 0 var(--zb-accordion-rail);
+  transition: background var(--zb-accordion-duration) var(--zb-ease);
+}
+
+.zb-accordion__trigger:hover {
+  background: var(--zb-accordion-header-bg-hover);
+}
+
+.zb-accordion__trigger:focus-visible {
+  outline: var(--zb-focus-ring);
+  /* Inset, because an outward ring on a full-bleed header is clipped by the
+     container's own overflow and disappears on the first and last rows. */
+  outline-offset: calc(var(--zb-focus-ring-offset) * -1);
+}
+
+.zb-accordion__item[data-open="true"] > .zb-accordion__heading > .zb-accordion__trigger {
+  background: var(--zb-accordion-header-bg-open);
+}
+
+.zb-accordion__trigger[aria-disabled="true"] {
+  cursor: default;
+}
+
+.zb-accordion__icon {
+  flex: none;
+  inline-size: 0.875em;
+  block-size: 0.875em;
+  color: var(--zb-accordion-icon-fg);
+  transition: transform var(--zb-accordion-duration) var(--zb-ease);
+}
+
+.zb-accordion__item[data-open="true"] > .zb-accordion__heading .zb-accordion__icon {
+  transform: rotate(180deg);
+}
+
+/* The chevron points along the reading direction when placed at the end. */
+.zb-accordion[data-icon-placement="end"] .zb-accordion__icon {
+  order: 2;
+}
+
+.zb-accordion__label {
+  flex: none;
+  font-weight: 600;
+}
+
+.zb-accordion__spacer {
+  flex: 1 1 auto;
+  min-inline-size: var(--zb-accordion-gap);
+}
+
+.zb-accordion__summary {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--zb-accordion-gap) / 1.5);
+  flex: none;
+  color: var(--zb-accordion-summary-fg);
+  font-size: var(--zb-text-sm);
+}
+
+.zb-accordion__extra {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--zb-accordion-gap) / 2);
+  padding-inline-end: var(--zb-accordion-pad-x);
+}
+
+/* ------------------------------------------------------------------ */
+/* Severity rail                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The rail is never the only carrier of state.
+ *
+ * Forced-colors mode discards it, monochrome printing discards the hue, and
+ * roughly one in twelve men cannot separate red from green. A lint rule
+ * (@zoblocks/require-accordion-summary) makes the paired text mandatory rather
+ * than conventional.
+ */
+.zb-accordion__item[data-severity="critical"] {
+  --zb-accordion-rail: var(--zb-accordion-rail-critical);
+}
+.zb-accordion__item[data-severity="high"] {
+  --zb-accordion-rail: var(--zb-accordion-rail-high);
+}
+.zb-accordion__item[data-severity="low"] {
+  --zb-accordion-rail: var(--zb-accordion-rail-low);
+}
+.zb-accordion__item[data-severity="normal"] {
+  --zb-accordion-rail: var(--zb-accordion-rail-normal);
+}
+.zb-accordion__item[data-severity="unknown"] {
+  --zb-accordion-rail: var(--zb-accordion-rail-unknown);
+}
+
+/* Restricted describes the record, not a measurement, so it sits outside the
+   status scale — the same distinction PatientBanner already makes. */
+.zb-accordion__item[data-access="consent"],
+.zb-accordion__item[data-access="reason"],
+.zb-accordion__item[data-access="withheld"] {
+  --zb-accordion-rail: var(--zb-accordion-rail-restricted);
+}
+
+.zb-accordion__item[data-access="withheld"] .zb-accordion__trigger {
+  cursor: not-allowed;
+}
+
+.zb-accordion__item[data-access="withheld"] .zb-accordion__summary {
+  color: var(--zb-accordion-withheld-fg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Panel                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Height animation with no measurement.
+ *
+ * `0fr → 1fr` on a single grid row transitions to the content's intrinsic
+ * height without JavaScript reading `scrollHeight`, without a ResizeObserver,
+ * and without a forced reflow in the toggle path. Every accordion that animates
+ * by measuring gets slower as its sections get longer, which is exactly where a
+ * 142-encounter note list lands.
+ */
+.zb-accordion__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--zb-accordion-duration) var(--zb-ease);
+}
+
+/**
+ * Re-assert hiding, because `display: grid` above beats `[hidden]`.
+ *
+ * `content-visibility: hidden` rather than `display: none` on purpose: it keeps
+ * the box for the transition, and it still removes the subtree from the
+ * accessibility tree and from find-in-page. In a browser that supports
+ * `hidden="until-found"` this matches what the UA stylesheet already does; in
+ * one that does not, it is what makes the plain `hidden` attribute behave.
+ */
+.zb-accordion__panel[hidden] {
+  content-visibility: hidden;
+}
+
+.zb-accordion__item[data-open="true"] > .zb-accordion__panel {
+  grid-template-rows: 1fr;
+}
+
+.zb-accordion__body {
+  overflow: hidden;
+  min-block-size: 0;
+}
+
+.zb-accordion__inner {
+  padding-block: var(--zb-accordion-pad-y) calc(var(--zb-accordion-pad-y) + 0.25rem);
+  padding-inline: var(--zb-accordion-pad-x);
+  border-block-start: 1px solid var(--zb-accordion-divider);
+  color: var(--zb-accordion-body-fg);
+}
+
+/**
+ * Long charts stop paying layout for sections nobody opened.
+ *
+ * `auto` rather than `hidden`: an open panel must lay out normally, and the
+ * intrinsic-size hint keeps the scrollbar from jumping as sections render.
+ */
+.zb-accordion[data-virtualise-hint="true"] .zb-accordion__panel {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 0 var(--zb-accordion-intrinsic, 4rem);
+}
+
+/* ------------------------------------------------------------------ */
+/* Gates                                                               */
+/* ------------------------------------------------------------------ */
+
+.zb-accordion__gate {
+  border: 1px solid var(--zb-accordion-gate-border);
+  border-radius: var(--zb-radius);
+  background: var(--zb-accordion-gate-bg);
+  padding-block: var(--zb-accordion-pad-y);
+  padding-inline: var(--zb-accordion-pad-x);
+  color: var(--zb-text);
+}
+
+.zb-accordion__gate[data-kind="consent"] {
+  border-color: var(--zb-accordion-rail-restricted);
+  background: var(--zb-accordion-restricted-bg);
+}
+
+.zb-accordion__gate-title {
+  margin: 0 0 0.25rem;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.zb-accordion__gate-note {
+  margin: 0 0 0.5rem;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+}
+
+.zb-accordion__gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--zb-accordion-gap) / 2);
+}
+
+.zb-accordion__gate-reasons {
+  display: block;
+  margin-block-end: 0.5rem;
+  font-size: var(--zb-text-sm);
+  color: var(--zb-text-muted);
+}
+
+.zb-accordion__gate-select {
+  font: inherit;
+  color: var(--zb-field-fg);
+  background: var(--zb-field-bg);
+  border: 1px solid var(--zb-field-border);
+  border-radius: var(--zb-field-radius);
+  padding-block: calc(var(--zb-field-pad-y) / 1.5);
+  padding-inline: var(--zb-field-pad-x);
+  margin-block-end: 0.5rem;
+  min-block-size: var(--zb-density-target-floor);
+}
+
+.zb-accordion__gate-select:focus-visible {
+  outline: var(--zb-focus-ring);
+  outline-offset: var(--zb-focus-ring-offset);
+}
+
+.zb-accordion__gate-confirm {
+  font: inherit;
+  cursor: pointer;
+  color: var(--zb-text-on-accent);
+  background: var(--zb-accent);
+  border: 1px solid var(--zb-accent-border);
+  border-radius: var(--zb-radius);
+  padding-block: calc(var(--zb-accordion-pad-y) / 1.5);
+  padding-inline: var(--zb-accordion-pad-x);
+  min-block-size: max(var(--zb-accordion-target), var(--zb-density-target-floor));
+}
+
+.zb-accordion__gate-confirm:hover:not(:disabled) {
+  background: var(--zb-accent-hover);
+}
+
+.zb-accordion__gate-confirm:disabled {
+  cursor: progress;
+}
+
+.zb-accordion__gate-confirm:focus-visible {
+  outline: var(--zb-focus-ring);
+  outline-offset: var(--zb-focus-ring-offset);
+}
+
+/* A refusal names what did not happen and what is still usable — CONTENT.md §5. */
+.zb-accordion__gate-refused {
+  margin: 0.5rem 0 0;
+  color: var(--zb-status-critical);
+  font-size: var(--zb-text-sm);
+}
+
+/**
+ * Withheld reads as a statement, never as a disabled control.
+ *
+ * CONTENT.md §1 separates five kinds of absence, and this is the *masked* one:
+ * policy withheld it from this reader. Greying it would say "unavailable",
+ * which is a different claim and the wrong one.
+ */
+.zb-accordion__withheld-reason {
+  margin: 0;
+  color: var(--zb-accordion-withheld-fg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Severity chip                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Lives here rather than in chart-accordion so the whole family installs one
+ * stylesheet. It uses `--zb-badge-*` deliberately: when StatusBadge ships, this
+ * becomes a refactor rather than a re-design, and critical already reads
+ * identically on a section header and on a lab result.
+ */
+.zb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-block: 0.05rem;
+  padding-inline: 0.45rem;
+  border: 1px solid var(--zb-badge-unknown-border);
+  border-radius: var(--zb-badge-radius);
+  background: var(--zb-badge-unknown-bg);
+  color: var(--zb-badge-unknown-fg);
+  font-size: var(--zb-text-sm);
+  white-space: nowrap;
+}
+
+.zb-chip--critical {
+  border-color: var(--zb-badge-critical-border);
+  background: var(--zb-badge-critical-bg);
+  color: var(--zb-badge-critical-fg);
+  font-weight: 600;
+}
+.zb-chip--high {
+  border-color: var(--zb-badge-high-border);
+  background: var(--zb-badge-high-bg);
+  color: var(--zb-badge-high-fg);
+}
+.zb-chip--low {
+  border-color: var(--zb-badge-low-border);
+  background: var(--zb-badge-low-bg);
+  color: var(--zb-badge-low-fg);
+}
+.zb-chip--normal {
+  border-color: var(--zb-badge-normal-border);
+  background: var(--zb-badge-normal-bg);
+  color: var(--zb-badge-normal-fg);
+}
+.zb-chip--unknown {
+  border-color: var(--zb-badge-unknown-border);
+  background: var(--zb-badge-unknown-bg);
+  color: var(--zb-badge-unknown-fg);
+}
+
+/* ------------------------------------------------------------------ */
+/* ChartAccordion                                                      */
+/* ------------------------------------------------------------------ */
+
+.zb-chart-accordion__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zb-accordion-gap);
+  margin-block-end: calc(var(--zb-accordion-gap) / 1.5);
+}
+
+.zb-chart-accordion__toolbar-label {
+  font-weight: 600;
+  color: var(--zb-text);
+}
+
+.zb-chart-accordion__toolbar-actions {
+  display: flex;
+  gap: calc(var(--zb-accordion-gap) / 2);
+}
+
+.zb-chart-accordion__action {
+  font: inherit;
+  font-size: var(--zb-text-sm);
+  color: var(--zb-accent);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--zb-radius-sm);
+  cursor: pointer;
+  padding-block: 0.15rem;
+  padding-inline: 0.4rem;
+  min-block-size: var(--zb-density-target-floor);
+}
+
+.zb-chart-accordion__action:hover {
+  background: var(--zb-accent-subtle);
+}
+
+.zb-chart-accordion__action:focus-visible {
+  outline: var(--zb-focus-ring);
+  outline-offset: var(--zb-focus-ring-offset);
+}
+
+.zb-chart-accordion__count,
+.zb-chart-accordion__time {
+  color: var(--zb-text-subtle);
+  font-size: var(--zb-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* SafetyPlan                                                          */
+/* ------------------------------------------------------------------ */
+
+.zb-safety-plan__revised {
+  margin: 0 0 var(--zb-accordion-gap);
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+}
+
+.zb-safety-plan__entries {
+  margin: 0;
+  padding-inline-start: 1.15rem;
+  color: var(--zb-text);
+}
+
+.zb-safety-plan__entries li {
+  margin-block-end: 0.35rem;
+}
+
+.zb-safety-plan__contacts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0;
+  color: var(--zb-text);
+}
+
+.zb-safety-plan__contacts dt {
+  font-weight: 600;
+}
+
+.zb-safety-plan__contacts dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+}
+
+.zb-safety-plan__availability {
+  color: var(--zb-text-muted);
+}
+
+/**
+ * The crisis step is drawn as its own surface.
+ *
+ * Not for emphasis — because a person arriving here is not reading, they are
+ * looking. The tint is paired with the "Always open" text in the header, so
+ * nothing depends on the colour surviving.
+ */
+.zb-safety-plan .zb-accordion__item[data-pinned="true"] .zb-accordion__inner {
+  background: var(--zb-status-critical-bg);
+  border-block-start-color: var(--zb-status-critical-border);
+}
+
+.zb-safety-plan__explanation {
+  margin: 0.6rem 0 0;
+  color: var(--zb-text-muted);
+  font-size: var(--zb-text-sm);
+}
+
+.zb-safety-plan__empty {
+  margin: 0;
+  color: var(--zb-absent-fg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Reduced motion is a designed state, not a paused one.
+ *
+ * The panel still opens and closes; it simply stops travelling. Anything that
+ * carried meaning through movement carries it through text instead, which it
+ * already did.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .zb-accordion__panel,
+  .zb-accordion__icon,
+  .zb-accordion__trigger {
+    transition-duration: 1ms;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Forced colors                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The OS discards our palette here, including the severity rail. That is the
+ * reason the rail was never allowed to be the only signal: what survives is the
+ * text in the summary, which is always present.
+ */
+@media (forced-colors: active) {
+  .zb-accordion,
+  .zb-accordion[data-variant="separate"] .zb-accordion__item {
+    border-color: CanvasText;
+  }
+
+  .zb-accordion__trigger {
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .zb-accordion__trigger:focus-visible {
+    outline: 2px solid Highlight;
+  }
+
+  .zb-accordion__icon {
+    color: CanvasText;
+  }
+
+  .zb-accordion__gate {
+    border-color: CanvasText;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Print                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A printed chart must be a chart, not a table of contents.
+ *
+ * The component removes `hidden` from every permitted panel before printing —
+ * `content-visibility` cannot be overridden into visibility for a subtree the
+ * UA has skipped — and this rule finishes the job by giving those panels their
+ * height back. Withheld sections are never expanded: there is nothing behind
+ * them, and printing an empty one would suggest otherwise.
+ */
+@media print {
+  .zb-accordion,
+  .zb-accordion[data-variant="separate"] .zb-accordion__item {
+    border-color: #999;
+  }
+
+  .zb-accordion__panel {
+    transition: none;
+  }
+
+  .zb-accordion__item[data-open="true"] > .zb-accordion__panel,
+  .zb-accordion__item[data-print-expanded="true"] > .zb-accordion__panel {
+    grid-template-rows: 1fr;
+    content-visibility: visible;
+  }
+
+  .zb-accordion__trigger {
+    background: none;
+  }
+
+  .zb-accordion__icon {
+    display: none;
+  }
+}
