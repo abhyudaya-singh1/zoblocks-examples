@@ -22,7 +22,7 @@ const INITIAL_CHARTS: OpenChart[] = [
   {
     id: "okonkwo",
     display: "A. Okonkwo",
-    photo: "https://api.dicebear.com/10.x/lorelei/svg?seed=L-Marsh",
+    photo: "https://api.dicebear.com/10.x/lorelei/svg?seed=A-Okonkwo",
     reason: "Ward round",
     lastActiveAt: "2026-10-06T18:05:00+05:30",
   },
@@ -41,11 +41,8 @@ const INITIAL_CHARTS: OpenChart[] = [
 
 function App() {
   const [charts, setCharts] = useState<OpenChart[]>(INITIAL_CHARTS);
-  const [activeId, setActiveId] = useState("okonkwo");
 
   const handleActivate = (chart: OpenChart) => {
-    setActiveId(chart.id);
-
     setCharts((current) =>
       current.map((item) =>
         item.id === chart.id
@@ -81,12 +78,7 @@ function App() {
           boxSizing: "border-box",
         }}
       >
-        <RecentPatientStack
-          charts={charts}
-          activeId={activeId}
-          now={NOW}
-          onActivate={handleActivate}
-        />
+        <RecentPatientStack charts={charts} now={NOW} onActivate={handleActivate} />
       </div>
     </main>
   );
