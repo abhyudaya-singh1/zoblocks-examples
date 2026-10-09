@@ -4,8 +4,6 @@
    and add one @import for each styles/zoblocks-*.css it writes. */
 @import "./styles/zoblocks-tokens.css";
 @import "./styles/zoblocks-menu.css";
-@import "./host-chrome.css";
-@import "./preview-frame.css";
 @source "./components/zoblocks";
 
 /* Page colours come from the ZoBlocks tokens, so light and dark both work. */
