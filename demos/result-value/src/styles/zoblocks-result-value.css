@@ -1,0 +1,286 @@
+/**
+ * ResultValue — the number, its qualifiers, and the seven absences.
+ *
+ * Two lines by design: value, unit and interpretation on the first; the
+ * qualifiers on the second, and only when they exist. An empty qualifier line
+ * reserving space is how a results grid ends up half whitespace.
+ */
+
+.zb-rv {
+  --zb-rv-gap: 0.5rem;
+  --zb-rv-value-size: var(--zb-rv-value-default, 1.0625rem);
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  align-items: flex-start;
+  inline-size: 100%;
+  font-family: var(--zb-font-sans, inherit);
+  color: var(--zb-text, inherit);
+  text-align: start;
+}
+
+.zb-rv[data-zb-density="compact"] {
+  --zb-rv-gap: 0.375rem;
+  --zb-rv-value-size: var(--zb-rv-value-compact, 0.9375rem);
+  gap: 0.125rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* The value line                                                    */
+/* ---------------------------------------------------------------- */
+
+.zb-rv__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--zb-rv-gap);
+  min-inline-size: 0;
+}
+
+.zb-rv__analyte {
+  font-size: var(--zb-text-sm, 0.8125rem);
+  font-weight: 500;
+  color: var(--zb-text-muted, inherit);
+}
+
+.zb-rv__value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+/*
+ * Tabular figures, always.
+ *
+ * A results column with proportional digits does not line up, and a column
+ * that does not line up cannot be scanned — which is the only way anybody
+ * reads forty rows of chemistry.
+ */
+.zb-rv__number {
+  font-size: var(--zb-rv-value-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.zb-rv__comparator {
+  font-size: var(--zb-rv-value-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  /* Never dimmed and never dropped: "<0.04" and "0.04" are different results. */
+  color: inherit;
+}
+
+.zb-rv__unit {
+  font-size: var(--zb-text-xs, 0.75rem);
+  color: var(--zb-text-muted, inherit);
+}
+
+/* ---------------------------------------------------------------- */
+/* Delta                                                             */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The arrow is reinforcement; the sign on the number is the signal, and both
+ * are in the accessible name as words. Direction is never colour alone —
+ * up and down are different glyphs before they are different hues.
+ */
+.zb-rv__delta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1875rem;
+  font-size: var(--zb-text-xs, 0.75rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--zb-text-muted, inherit);
+}
+
+.zb-rv__delta[data-zb-direction="up"] {
+  color: var(--zb-status-high, #b45309);
+}
+
+.zb-rv__delta[data-zb-direction="down"] {
+  color: var(--zb-status-low, #2563eb);
+}
+
+.zb-rv__delta-since {
+  color: var(--zb-text-subtle, var(--zb-text-muted, inherit));
+}
+
+/* ---------------------------------------------------------------- */
+/* Correction                                                        */
+/* ---------------------------------------------------------------- */
+
+/*
+ * The superseded value, not a badge.
+ *
+ * A badge saying "corrected" does not address the hazard, which is that
+ * somebody read the old number an hour ago and wrote it into a note. Showing
+ * the old number struck through, with the time it changed, does.
+ */
+.zb-rv__superseded {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  padding: 0.0625rem 0.375rem;
+  border-inline-start: 2px solid var(--zb-status-high, #b45309);
+  font-size: var(--zb-text-xs, 0.75rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--zb-text-muted, inherit);
+}
+
+.zb-rv__superseded s {
+  color: var(--zb-text-subtle, var(--zb-text-muted, inherit));
+  text-decoration-thickness: 1px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Qualifiers                                                        */
+/* ---------------------------------------------------------------- */
+
+.zb-rv__qualifiers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  font-size: var(--zb-text-xs, 0.75rem);
+  color: var(--zb-text-muted, inherit);
+}
+
+.zb-rv__qualifiers:empty {
+  display: none;
+}
+
+.zb-rv__range {
+  font-variant-numeric: tabular-nums;
+}
+
+.zb-rv__applies {
+  color: var(--zb-text-subtle, var(--zb-text-muted, inherit));
+}
+
+/*
+ * "No range for this patient" reads as an assertion, not as a gap.
+ *
+ * The lab said there is no range. Printing nothing would let the number read
+ * as normal, which is the failure this line exists to prevent — so it is
+ * styled as content rather than as an absence.
+ */
+.zb-rv__range[data-zb-norange] {
+  font-style: italic;
+}
+
+.zb-rv__provenance {
+  padding: 0.0625rem 0.3125rem;
+  border: 1px solid var(--zb-border, #e2e8f0);
+  border-radius: var(--zb-radius-sm, 4px);
+  font-size: var(--zb-text-2xs, 0.6875rem);
+}
+
+/* Two of the five carry more doubt than the others and say so. */
+.zb-rv__provenance[data-zb-provenance="patient-reported"],
+.zb-rv__provenance[data-zb-provenance="ai-extracted"] {
+  border-color: var(--zb-status-provisional-border, #a5f3fc);
+  color: var(--zb-status-provisional, #0e7490);
+}
+
+.zb-rv__age,
+.zb-rv__note {
+  color: var(--zb-text-subtle, var(--zb-text-muted, inherit));
+}
+
+/* ---------------------------------------------------------------- */
+/* Absence                                                           */
+/*                                                                   */
+/* Seven reasons, seven sentences, and no em dash among them. An em  */
+/* dash is indistinguishable from a rendering bug, and it asks the   */
+/* reader to guess between "nobody ordered it", "the specimen        */
+/* haemolysed" and "you are not allowed to see it".                  */
+/* ---------------------------------------------------------------- */
+
+.zb-rv__value[data-zb-absent-value] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  align-items: flex-start;
+}
+
+.zb-rv__absent-word {
+  font-size: var(--zb-text-sm, 0.8125rem);
+  font-weight: 600;
+  color: var(--zb-absent-fg, var(--zb-text-muted, #64748b));
+}
+
+.zb-rv__absent-detail {
+  font-size: var(--zb-text-xs, 0.75rem);
+  font-weight: 400;
+  color: var(--zb-text-muted, inherit);
+}
+
+/* Restricted is not a gap: a value exists and the reader may not see it. */
+.zb-rv[data-zb-absent="masked"] .zb-rv__absent-word {
+  color: var(--zb-status-restricted, #6d28d9);
+}
+
+/* An unmapped absence is a data-quality defect, and it is not styled as calm. */
+.zb-rv[data-zb-absent="unknown"] .zb-rv__absent-word {
+  color: var(--zb-status-high, #b45309);
+}
+
+/* ---------------------------------------------------------------- */
+/* Interactive                                                       */
+/* ---------------------------------------------------------------- */
+
+button.zb-rv {
+  appearance: none;
+  padding: 0.25rem 0.375rem;
+  margin-inline-start: -0.375rem;
+  border: 0;
+  border-radius: var(--zb-radius, 6px);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  min-block-size: 1.5rem;
+}
+
+button.zb-rv:hover {
+  background: var(--zb-bg-subtle, rgb(0 0 0 / 0.03));
+}
+
+button.zb-rv:focus-visible {
+  outline: 2px solid var(--zb-focus-ring, var(--zb-accent, #1677ff));
+  outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Narrow                                                            */
+/*                                                                   */
+/* The qualifier line wraps below the value; the interpretation word */
+/* never truncates. A truncated "criti…" is worse than no chip.      */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 480px) {
+  .zb-rv__line {
+    gap: 0.375rem;
+  }
+
+  .zb-rv__analyte {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Print                                                             */
+/* ---------------------------------------------------------------- */
+
+@media print {
+  .zb-rv {
+    color: #000;
+  }
+
+  /* The two facts a printed result must not lose. */
+  .zb-rv__superseded,
+  .zb-rv__absent-detail {
+    color: #000;
+  }
+}
