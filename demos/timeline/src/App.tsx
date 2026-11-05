@@ -1,26 +1,20 @@
 "use client";
-import { Timeline } from "./components/zoblocks/timeline";
+import { OrderedItemsExample } from "./examples/01-ordered-items";
+import { ReverseOrderExample } from "./examples/02-reverse-order";
+import { RailVariantsExample } from "./examples/03-rail-variants";
+import { ModesOrientationExample } from "./examples/04-modes-orientation";
+import { ItemStatesExample } from "./examples/05-item-states";
 
 export default function App() {
   return (
-    <div>
-      <Timeline
-        aria-label="Patient care timeline"
-        items={[
-          {
-            title: "0.4.0",
-            content: "Timeline.",
-          },
-          {
-            title: "0.3.0",
-            content: "Switch, Tabs.",
-          },
-          {
-            title: "0.2.0",
-            content: "Signature.",
-          },
-        ]}
-      />
-    </div>
+    <main className="min-h-screen px-4 py-10">
+      <div className="mx-auto w-full max-w-3xl space-y-12">
+        <OrderedItemsExample />
+        <ReverseOrderExample />
+        <RailVariantsExample />
+        <ModesOrientationExample />
+        <ItemStatesExample />
+      </div>
+    </main>
   );
 }
